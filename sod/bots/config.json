@@ -1,0 +1,5 @@
+{
+  "api_url": "http://localhost:8000/missions/run",
+  "token": "הכניסו כאן את טוקן הבוט מה-Telegram",
+  "default_agent": "poet"
+}
