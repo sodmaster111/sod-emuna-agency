@@ -1,0 +1,14 @@
+{
+  "telegram_token": "TELEGRAM_BOT_TOKEN",
+  "telegram_chat_id": "TELEGRAM_CHAT_ID",
+  "holidays": [
+    "2024-09-24",
+    "2024-09-25"
+  ],
+  "slots": {
+    "morning": ["tehillim", "chizuk"],
+    "noon": ["segula", "chizuk"],
+    "night": ["tefila", "tehillim"]
+  },
+  "timezone": "Asia/Jerusalem"
+}
