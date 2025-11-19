@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   traefik:
     image: traefik:v3.0
@@ -7,6 +9,8 @@ services:
       - "80:80"
       - "443:443"
       - "8080:8080"
+    networks:
+      - sod_network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/acme.json:/acme.json
@@ -24,6 +28,8 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    networks:
+      - sod_network
     volumes:
       - ollama_data:/root/.ollama
     expose:
@@ -36,9 +42,10 @@ services:
   n8n:
     image: n8nio/n8n:latest
     restart: unless-stopped
+    networks:
+      - sod_network
     environment:
       N8N_HOST: n8n.sodmaster.online
-      N8N_PROTOCOL: https
       WEBHOOK_URL: https://n8n.sodmaster.online/
     volumes:
       - n8n_data:/home/node/.n8n
@@ -53,8 +60,8 @@ services:
   searxng:
     image: searxng/searxng:latest
     restart: unless-stopped
-    environment:
-      BASE_URL: https://search.sodmaster.online
+    networks:
+      - sod_network
     volumes:
       - ./searxng:/etc/searxng
     labels:
@@ -68,6 +75,8 @@ services:
   qdrant:
     image: qdrant/qdrant:latest
     restart: unless-stopped
+    networks:
+      - sod_network
     volumes:
       - qdrant_data:/qdrant/storage
     expose:
@@ -79,5 +88,5 @@ volumes:
   qdrant_data:
 
 networks:
-  default:
-    name: sodmaster_default
+  sod_network:
+    name: sod_network
