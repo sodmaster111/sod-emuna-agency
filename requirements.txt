@@ -1,0 +1,8 @@
+pyautogen>=0.2.34
+litellm>=1.43.6
+redis>=5.0.0
+psycopg[binary]>=3.1.18
+pgvector>=0.2.5
+SQLAlchemy>=2.0.25
+playwright>=1.42.0
+tonutils>=0.0.4
