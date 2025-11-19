@@ -22,3 +22,14 @@ Slots available: `morning`, `noon`, `night`.
 ## Scheduling
 
 For cron usage, see [ops/cron.md](ops/cron.md). A systemd service/timer example is provided at [ops/systemd.service.example](ops/systemd.service.example).
+
+## Docker
+
+SOD Emuna Agency is a FastAPI-powered service that exposes the `sod.main:app` application for running the project's API.
+
+Build and run the Docker container locally:
+
+```bash
+docker build -t sod-emuna-agency .
+docker run -p 8000:8000 sod-emuna-agency
+```
