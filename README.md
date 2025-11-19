@@ -1,35 +1,29 @@
-# Emuna Agency
+# SOD Master – Phase 1 Bootstrap
 
-Emuna Agency is a lightweight Telegram service that shares short messages of אמונה, תהילים, תפילה וסגולה a few times a day. It avoids Shabbat and configured holidays, so you can schedule it safely on a Linux host.
+This repository provides the bare minimum required to bring up the shared infrastructure proxy (Traefik) on a fresh Ubuntu 24.04 server.
 
-## Setup
-
-1. Create `config.json` (not committed) in the project root or under `config/` by copying `config/config.example.json` and filling in your Telegram bot token, chat ID, timezone, slots, and holidays.
-2. Create `data/library.json` (not committed) by copying `data/library.example.json` and adjusting or expanding the content items.
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Running manually
-
-Use Python's module flag to trigger a slot:
+## 1. Connect to the server via SSH
 ```bash
-python -m src.agency morning
+ssh <user>@<server-ip>
 ```
-Slots available: `morning`, `noon`, `night`.
+Use the administrative user with sudo/root access.
 
-## Scheduling
-
-For cron usage, see [ops/cron.md](ops/cron.md). A systemd service/timer example is provided at [ops/systemd.service.example](ops/systemd.service.example).
-
-## Docker
-
-SOD Emuna Agency is a FastAPI-powered service that exposes the `sod.main:app` application for running the project's API.
-
-Build and run the Docker container locally:
-
+## 2. Clone the repository
 ```bash
-docker build -t sod-emuna-agency .
-docker run -p 8000:8000 sod-emuna-agency
+cd /opt
+sudo git clone https://github.com/<your-org>/sod-emuna-agency.git
+cd sod-emuna-agency
 ```
+(Replace the URL if you are using a fork or private mirror.)
+
+## 3. Initialize the server
+```bash
+sudo bash init_server.sh
+```
+This script updates the OS, creates a 16 GB swap file, installs Docker + Docker Compose, and prepares `/opt/sodmaster` directories.
+
+## 4. Launch Traefik
+```bash
+sudo docker compose up -d
+```
+The Traefik dashboard will then be available on port `8080`, while HTTP/HTTPS traffic is handled on ports `80` and `443` with automatic Let's Encrypt certificates for `sodmaster.online`.
