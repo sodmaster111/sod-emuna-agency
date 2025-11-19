@@ -6,3 +6,7 @@ pgvector>=0.2.5
 SQLAlchemy>=2.0.25
 playwright>=1.42.0
 tonutils>=0.0.4
+asyncpg
+fastapi
+uvicorn
+browser-use
