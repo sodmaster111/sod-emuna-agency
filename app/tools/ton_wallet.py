@@ -1,24 +1,28 @@
-"""TON blockchain utility wrapper."""
+"""TON wallet utility wrapper."""
 from __future__ import annotations
 
-from typing import Any, Dict
+import importlib.util
+from typing import Optional
+
+LiteClient = None
+if importlib.util.find_spec("pytoniq"):
+    from pytoniq import LiteClient  # type: ignore[assignment]
 
 
 class TonWalletTool:
-    """Minimal wrapper around tonutils wallet operations."""
+    """Minimal TON wallet helper (stub-friendly)."""
 
-    def __init__(self, mnemonic: str | None = None) -> None:
+    def __init__(self, mnemonic: Optional[str] = None) -> None:
         self.mnemonic = mnemonic
+        self.client = LiteClient() if LiteClient else None
 
     def get_balance(self, address: str) -> float:
-        from tonutils.wallet import Wallet
+        """Return the balance for an address (stubbed to 0 when offline)."""
 
-        wallet = Wallet.from_mnemonic(self.mnemonic) if self.mnemonic else Wallet.from_address(address)
-        return float(wallet.balance())
+        if not address or not self.client:
+            return 0.0
+        # In a full implementation, query the TON blockchain here.
+        return float(self.client.get_balance(address))
 
-    def mint_nft(self, metadata: Dict[str, Any]) -> str:
-        from tonutils.nft import NFTCollection
 
-        collection = NFTCollection.from_mnemonic(self.mnemonic)
-        result = collection.mint(metadata)
-        return str(result)
+__all__ = ["TonWalletTool"]

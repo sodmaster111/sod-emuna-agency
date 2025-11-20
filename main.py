@@ -1,51 +1,62 @@
-"""Entry point for the Digital Sanhedrin application."""
+"""FastAPI entry point for the Digital Sanhedrin backend."""
 from __future__ import annotations
 
-import os
-import time
 from typing import List
 
+from fastapi import Depends, FastAPI
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.agents.registry import AGENTS_CONFIG
+from app.core.config import get_settings
+from app.core.database import Logs, get_async_session, init_db
 from app.core.sanhedrin import SanhedrinCouncil
-from app.tools.ton_wallet import TonWalletTool
+
+app = FastAPI(title="Digital Sanhedrin Backend", version="1.0.0")
 
 
-TARGET_BALANCE = float(os.getenv("TARGET_TON_BALANCE", "1000000"))
-SLEEP_SECONDS = int(os.getenv("CYCLE_SLEEP_SECONDS", str(60 * 60)))
-MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", "1"))
+@app.on_event("startup")
+async def on_startup() -> None:
+    await init_db()
 
 
-def current_balance(wallet: TonWalletTool) -> float:
-    address = os.getenv("TON_WALLET_ADDRESS", "")
-    return wallet.get_balance(address) if address else 0.0
+@app.post("/start-meeting")
+async def start_meeting(session: AsyncSession = Depends(get_async_session)) -> dict:
+    """Trigger the Sanhedrin deliberation loop and return the transcript."""
+
+    council = SanhedrinCouncil(db_session=session)
+    transcript: List[str] = await council.convene()
+    return {"mission_goal": council.mission_goal, "transcript": transcript}
 
 
-def execute_plan(plan: List[str]) -> None:
-    # Placeholder for orchestrating tool calls based on the plan.
-    for step in plan:
-        print(f"EXECUTING: {step}")
+@app.get("/logs")
+async def get_logs(session: AsyncSession = Depends(get_async_session)) -> list[dict]:
+    """Return the persisted chat history."""
+
+    result = await session.execute(select(Logs).order_by(Logs.timestamp.desc()))
+    rows = result.scalars().all()
+    return [
+        {
+            "id": row.id,
+            "timestamp": row.timestamp,
+            "agent": row.agent,
+            "message": row.message,
+        }
+        for row in rows
+    ]
 
 
-def main() -> None:
-    council = SanhedrinCouncil()
-    wallet = TonWalletTool(mnemonic=os.getenv("TON_WALLET_MNEMONIC"))
+@app.get("/status")
+async def status() -> dict:
+    """Return basic status for active agents and mission."""
 
-    iterations = 0
-    while iterations < MAX_ITERATIONS:
-        balance = current_balance(wallet)
-        print(f"Current TON balance: {balance}")
-        if balance >= TARGET_BALANCE:
-            print("Goal met. Standing by.")
-            break
-
-        print("Initiating board meeting...")
-        plan = council.convene()
-        execute_plan(plan)
-        iterations += 1
-
-        if iterations < MAX_ITERATIONS:
-            print(f"Sleeping for {SLEEP_SECONDS} seconds...")
-            time.sleep(SLEEP_SECONDS)
+    settings = get_settings()
+    return {
+        "agents": list(AGENTS_CONFIG.keys()),
+        "mission_goal": settings.mission_goal,
+        "ollama_base_url": settings.ollama_base_url,
+        "database_url": settings.database_url,
+    }
 
 
-if __name__ == "__main__":
-    main()
+__all__ = ["app"]

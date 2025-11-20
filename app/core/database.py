@@ -1,48 +1,58 @@
-"""Async database engine and logging models."""
+"""Async SQLAlchemy database utilities and models."""
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import AsyncGenerator
 
-from sqlalchemy import DateTime, String, Text, func
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.core.config import config
+from app.core.config import get_settings
 
 
 class Base(DeclarativeBase):
-    """Base class for declarative models."""
+    """Declarative base for ORM models."""
 
 
 class Logs(Base):
-    """Record book (Pinkas) storing agent thoughts and actions."""
+    """Persistent record of council deliberations."""
 
     __tablename__ = "logs"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, nullable=False
     )
-    agent_role: Mapped[Optional[str]] = mapped_column(String(255))
-    entry_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    agent: Mapped[str] = mapped_column(String(128), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
 
 
-database_url = config.async_postgres_url
-engine = create_async_engine(database_url, echo=False, future=True)
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-
-async def get_session() -> AsyncSession:
-    """Yield an async session for FastAPI dependency injection."""
-
-    async with AsyncSessionLocal() as session:
-        yield session
+_settings = get_settings()
+engine = create_async_engine(_settings.database_url, echo=False, future=True)
+SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
 async def init_db() -> None:
-    """Create database tables if they do not exist."""
+    """Create database tables on startup."""
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """Yield an async database session for FastAPI dependencies."""
+
+    async with SessionLocal() as session:
+        yield session
+
+
+async def log_entry(session: AsyncSession, agent: str, message: str) -> None:
+    """Persist a chat log entry to the database."""
+
+    entry = Logs(agent=agent, message=message)
+    session.add(entry)
+    await session.commit()
+
+
+__all__ = ["Base", "Logs", "engine", "SessionLocal", "init_db", "get_async_session", "log_entry"]
