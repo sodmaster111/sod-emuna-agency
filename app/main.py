@@ -8,12 +8,26 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
-from app.core.config import settings
-from app.core.database import get_db, init_db
+from app.agents import SanhedrinCouncil
+from app.api.v1.agents import router as agents_router
+from app.core.config import get_settings
+from app.core.database import Logs, get_async_session, init_db
+from app.core.engine import Engine
+from app.core.memory import MemoryManager
+from app.core.resource_monitor import get_system_health
 
 
 redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
 
+app.include_router(agents_router, prefix="/api/v1")
+
+engine = Engine()
+settings = get_settings()
+memory_manager = MemoryManager()
+ton_wallet = TonWalletTool()
+loop_task: Optional[asyncio.Task] = None
+latest_plan: List[str] = []
+mission_goal: str = settings.mission_goal
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
