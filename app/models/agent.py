@@ -1,27 +1,24 @@
-"""ORM model for registered Sanhedrin agents."""
+"""Models for describing Digital Sanhedrin agent profiles."""
 from __future__ import annotations
 
-from uuid import UUID, uuid4
+from enum import Enum
+from typing import Any, Dict
 
-from sqlalchemy import Text
 from sqlmodel import Field, SQLModel
 
 
-class Agent(SQLModel, table=True):
-    """Database representation of a Digital Sanhedrin agent."""
+class AgentTier(str, Enum):
+    """Enumeration of supported agent seniority tiers."""
 
-    __tablename__ = "agents"
-
-    id: UUID = Field(
-        default_factory=uuid4,
-        primary_key=True,
-        index=True,
-        nullable=False,
-    )
-    name: str = Field(nullable=False, index=True)
-    role: str = Field(nullable=False)
-    system_prompt: str = Field(sa_type=Text(), nullable=False)
-    is_c_level: bool = Field(default=False, nullable=False)
+    C_LEVEL = "C-Level"
+    SPECIALIST = "Specialist"
 
 
-__all__ = ["Agent"]
+class AgentProfile(SQLModel, table=False):
+    """A lightweight agent profile used for orchestration and discovery."""
+
+    name: str
+    role: str
+    tier: AgentTier
+    system_prompt: str
+    tools_config: Dict[str, Any] = Field(default_factory=dict)
