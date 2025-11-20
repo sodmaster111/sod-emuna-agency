@@ -1,6 +1,6 @@
 import type { ElementType } from "react";
 
-interface StatsCardProps {
+export interface StatsCardProps {
   label: string;
   value: string | number;
   description?: string;
