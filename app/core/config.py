@@ -1,65 +1,47 @@
-"""Application configuration utilities using Pydantic settings."""
+"""Application settings and environment configuration."""
 from __future__ import annotations
 
-from typing import Any, Dict
-
-import litellm
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from functools import lru_cache
+from pydantic import BaseSettings, Field
 
 
-class AppConfig(BaseSettings):
-    """Centralized configuration for the Digital Sanhedrin services."""
+class Settings(BaseSettings):
+    """Centralized runtime configuration for the backend."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-    # Core service URLs
-    postgres_url: str = (
-        "postgresql://postgres:U566V9c1ZuHuQcWBfyOEPoSz4dzrMzUT2vxHvR8jTatx7iAqGkj1pK6utomOjJE5"
-        "@postgresql-database-j4ss4c0g8ss4wwoc444k4gwo:5432/postgres"
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./app.db",
+        description="SQLAlchemy-compatible database URL",
+        env="DATABASE_URL",
     )
-    redis_url: str = "redis://redis-database-msgk84o0k800ogw8coc4s4sg:6379"
-    ollama_base_url: str = "http://ollama-with-open-webui-e0gw40o8884c04sskkg4wcww:11434/v1"
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis connection URI for Celery and caching",
+        env="REDIS_URL",
+    )
+    ollama_base_url: str = Field(
+        default="http://localhost:11434",
+        description="Base URL for the Ollama-compatible litellm proxy",
+        env="OLLAMA_BASE_URL",
+    )
+    mission_goal: str = Field(
+        default=(
+            "Grow the Digital Sanhedrin's assets while remaining halachically and"
+            " ethically compliant."
+        ),
+        description="Primary mission objective for the council",
+        env="MISSION_GOAL",
+    )
 
-    # LLM defaults
-    ollama_model: str = "llama3.2"
-    temperature: float = 0.3
-    max_tokens: int = 4096
-
-    @property
-    def async_postgres_url(self) -> str:
-        """Return the asyncpg connection string for SQLAlchemy."""
-
-        if self.postgres_url.startswith("postgresql+asyncpg"):
-            return self.postgres_url
-        if self.postgres_url.startswith("postgres://"):
-            return self.postgres_url.replace("postgres://", "postgresql+asyncpg://", 1)
-        return self.postgres_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-
-    @property
-    def llm_config(self) -> Dict[str, Any]:
-        """LiteLLM configuration used by AutoGen agents."""
-
-        return {
-            "model": self.ollama_model,
-            "api_base": self.ollama_base_url,
-            "api_type": "ollama",
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
-        }
-
-    def configure_litellm(self) -> None:
-        """Configure global LiteLLM defaults for Ollama."""
-
-        litellm.api_base = self.ollama_base_url
-        litellm.model = self.ollama_model
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
-def load_config() -> AppConfig:
-    """Initialize the application configuration and wire LiteLLM."""
+@lru_cache
+def get_settings() -> Settings:
+    """Return a cached settings instance."""
 
-    cfg = AppConfig()
-    cfg.configure_litellm()
-    return cfg
+    return Settings()
 
 
-config = load_config()
+__all__ = ["Settings", "get_settings"]
