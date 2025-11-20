@@ -7,6 +7,7 @@ celery[redis]
 python-multipart
 requests
 pyautogen>=0.2.0
+pydantic-settings
 litellm
 browser-use
 playwright

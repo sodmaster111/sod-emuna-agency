@@ -1,14 +1,46 @@
 """Async SQLAlchemy database utilities and models."""
 from __future__ import annotations
 
+import os
 from datetime import datetime
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List
 
 from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.core.config import get_settings
+
+
+class DummyResult:
+    """Minimal result set used when database access is disabled."""
+
+    def scalars(self) -> "DummyScalarResult":
+        return DummyScalarResult()
+
+
+class DummyScalarResult:
+    def all(self) -> List[object]:
+        return []
+
+
+class DummyAsyncSession:
+    """No-op async session to satisfy dependency overrides during tests."""
+
+    async def execute(self, *_args, **_kwargs) -> DummyResult:
+        return DummyResult()
+
+    async def commit(self) -> None:  # pragma: no cover - no-op
+        return None
+
+    def add(self, *_args, **_kwargs) -> None:  # pragma: no cover - no-op
+        return None
+
+    async def __aenter__(self) -> "DummyAsyncSession":
+        return self
+
+    async def __aexit__(self, *_args) -> None:  # pragma: no cover - no-op
+        return None
 
 
 class Base(DeclarativeBase):
@@ -28,13 +60,21 @@ class Logs(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
 
 
-_settings = get_settings()
-engine = create_async_engine(_settings.database_url, echo=False, future=True)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+DISABLE_DATABASE = os.getenv("DISABLE_DATABASE", "").lower() in {"1", "true", "yes"}
+
+if not DISABLE_DATABASE:
+    _settings = get_settings()
+    engine = create_async_engine(_settings.database_url, echo=False, future=True)
+    SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+else:  # pragma: no cover - only exercised in constrained test environments
+    engine = None
+    SessionLocal = None
 
 
 async def init_db() -> None:
     """Create database tables on startup."""
+    if DISABLE_DATABASE:
+        return
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -42,13 +82,20 @@ async def init_db() -> None:
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """Yield an async database session for FastAPI dependencies."""
-
-    async with SessionLocal() as session:
-        yield session
+    if DISABLE_DATABASE:
+        session = DummyAsyncSession()
+        async with session:
+            yield session
+    else:
+        async with SessionLocal() as session:
+            yield session
 
 
 async def log_entry(session: AsyncSession, agent: str, message: str) -> None:
     """Persist a chat log entry to the database."""
+
+    if DISABLE_DATABASE:
+        return
 
     entry = Logs(agent=agent, message=message)
     session.add(entry)
