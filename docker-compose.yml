@@ -18,6 +18,7 @@ services:
       - --api.insecure=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=sod_network
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
@@ -52,6 +53,7 @@ services:
       - n8n_data:/home/node/.n8n
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=sod_network"
       - "traefik.http.routers.n8n.rule=Host(`n8n.sodmaster.online`)"
       - "traefik.http.routers.n8n.entrypoints=websecure"
       - "traefik.http.routers.n8n.tls=true"
@@ -67,6 +69,7 @@ services:
       - ./searxng:/etc/searxng
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=sod_network"
       - "traefik.http.routers.searxng.rule=Host(`search.sodmaster.online`)"
       - "traefik.http.routers.searxng.entrypoints=websecure"
       - "traefik.http.routers.searxng.tls=true"
@@ -87,6 +90,7 @@ services:
       NEXT_PUBLIC_API_URL: https://api.sodmaster.online
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=sod_network"
       - "traefik.http.routers.frontend.rule=Host(`sodmaster.online`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
@@ -104,6 +108,7 @@ services:
       - "8000"
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=sod_network"
       - "traefik.http.routers.backend.rule=Host(`api.sodmaster.online`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
