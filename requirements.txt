@@ -1,4 +1,4 @@
-pyautogen
+pyautogen  # Microsoft AutoGen
 playwright>=1.42.0
 litellm>=1.43.6
 redis>=5.0.0
