@@ -1,10 +1,10 @@
-import { LucideIcon } from "lucide-react";
+import type { ElementType } from "react";
 
 interface StatsCardProps {
   label: string;
   value: string | number;
   description?: string;
-  icon?: LucideIcon;
+  icon?: ElementType;
   trend?: { direction: "up" | "down"; value: string };
 }
 
