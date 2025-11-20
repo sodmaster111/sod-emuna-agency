@@ -4,9 +4,10 @@ Defines AMAC-aligned personas with halachic and strategic safeguards.
 """
 from __future__ import annotations
 
-from typing import Dict
+from typing import Any, Dict
 
 from app.core.config import get_settings
+from app.agents.registry_data import CORPORATE_DNA
 
 # AMAC architecture + world-class strategy baseline reused across personas.
 AMAC_BASELINE = (
@@ -126,8 +127,15 @@ def get_system_prompt(role_name: str, mission_goal: str | None = None) -> str:
 
     settings = get_settings()
     context = mission_goal or settings.mission_goal
-    agent = AGENTS_CONFIG[role_name]
-    prompt = agent["system_message"]
+    agent: Dict[str, Any]
+
+    if role_name in AGENTS_CONFIG:
+        agent = AGENTS_CONFIG[role_name]
+        prompt = agent["system_message"]
+    else:
+        agent = CORPORATE_DNA[role_name]
+        prompt = agent["system_prompt"]
+
     if context:
         prompt = f"Mission Goal: {context}. {prompt}"
     return prompt
