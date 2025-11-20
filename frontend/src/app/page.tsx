@@ -10,7 +10,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { ComponentType } from "react";
+import type { ElementType } from "react";
 
 import { DonationForm } from "@/components/blocks/donation-form";
 import { HeroSection } from "@/components/blocks/hero-section";
@@ -80,7 +80,7 @@ type LayoutResponse = {
   sections: LayoutSection[];
 };
 
-const iconMap: Record<string, ComponentType<any>> = {
+const iconMap: Record<string, ElementType> = {
   activity: Activity,
   brain: Brain,
   cpu: Cpu,
@@ -139,7 +139,7 @@ function SectionRenderer({ section }: { section: LayoutSection }) {
       return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {section.items.map((item, index) => {
-            const Icon = item.icon ? iconMap[item.icon] : undefined;
+            const Icon: ElementType | undefined = item.icon ? iconMap[item.icon] : undefined;
             return (
               <StatsCard
                 key={`${item.label}-${index}`}
