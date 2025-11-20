@@ -1,135 +1,57 @@
-version: "3.8"
+version: "3.9"
 
 services:
-  traefik:
-    image: traefik:v3.2
-    container_name: traefik
-    restart: unless-stopped
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
     ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
+      - "5432:5432"
     networks:
-      - sod_network
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/acme.json:/acme.json
-    command:
-      - --api.insecure=true
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=sod_network
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --entrypoints.web.http.redirections.entryPoint.to=websecure
-      - --entrypoints.web.http.redirections.entryPoint.scheme=https
-      - --certificatesresolvers.le.acme.email=admin@sodmaster.online
-      - --certificatesresolvers.le.acme.storage=/acme.json
-      - --certificatesresolvers.le.acme.tlschallenge=true
+      - sod
 
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
     networks:
-      - sod_network
-    volumes:
-      - ollama_data:/root/.ollama
-    expose:
-      - "11434"
-    deploy:
-      resources:
-        limits:
-          memory: 6G
+      - sod
 
-  n8n:
-    image: n8nio/n8n:latest
-    restart: unless-stopped
-    networks:
-      - sod_network
-    environment:
-      N8N_HOST: n8n.sodmaster.online
-      WEBHOOK_URL: https://n8n.sodmaster.online/
-    volumes:
-      - n8n_data:/home/node/.n8n
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=sod_network"
-      - "traefik.http.routers.n8n.rule=Host(`n8n.sodmaster.online`)"
-      - "traefik.http.routers.n8n.entrypoints=websecure"
-      - "traefik.http.routers.n8n.tls=true"
-      - "traefik.http.routers.n8n.tls.certresolver=le"
-      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
-
-  searxng:
-    image: searxng/searxng:latest
-    restart: unless-stopped
-    networks:
-      - sod_network
-    volumes:
-      - ./searxng:/etc/searxng
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=sod_network"
-      - "traefik.http.routers.searxng.rule=Host(`search.sodmaster.online`)"
-      - "traefik.http.routers.searxng.entrypoints=websecure"
-      - "traefik.http.routers.searxng.tls=true"
-      - "traefik.http.routers.searxng.tls.certresolver=le"
-      - "traefik.http.services.searxng.loadbalancer.server.port=8080"
-
-  frontend:
-    image: node:20
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    networks:
-      - sod_network
-    expose:
-      - "3000"
-    environment:
-      NEXT_PUBLIC_API_URL: https://api.sodmaster.online
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=sod_network"
-      - "traefik.http.routers.frontend.rule=Host(`sodmaster.online`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.routers.frontend.tls.certresolver=le"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-
-  app:
+  api:
     build:
       context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "8000:8000"
     networks:
-      - sod_network
-    expose:
-      - "8000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=sod_network"
-      - "traefik.http.routers.backend.rule=Host(`api.sodmaster.online`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls=true"
-      - "traefik.http.routers.backend.tls.certresolver=le"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - sod
 
-  qdrant:
-    image: qdrant/qdrant:latest
-    restart: unless-stopped
+  worker:
+    build:
+      context: .
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
     networks:
-      - sod_network
-    volumes:
-      - qdrant_data:/qdrant/storage
-    expose:
-      - "6333"
-
-volumes:
-  ollama_data:
-  n8n_data:
-  qdrant_data:
+      - sod
 
 networks:
-  sod_network:
-    name: sod_network
+  sod:
+    driver: bridge
