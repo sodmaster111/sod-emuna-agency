@@ -28,6 +28,21 @@ class Settings(BaseSettings):
         description="Base URL for the Ollama-compatible litellm proxy",
         env="OLLAMA_BASE_URL",
     )
+    ollama_model: str = Field(
+        default="gpt-4o-mini",
+        description="Model identifier served by the Ollama-compatible endpoint",
+        env="OLLAMA_MODEL",
+    )
+    temperature: float = Field(
+        default=0.2,
+        description="Default sampling temperature for LLM calls",
+        env="OLLAMA_TEMPERATURE",
+    )
+    max_tokens: int = Field(
+        default=2048,
+        description="Token budget for generation where applicable",
+        env="OLLAMA_MAX_TOKENS",
+    )
     mission_goal: str = Field(
         default=(
             "Grow the Digital Sanhedrin's assets while remaining halachically and"
@@ -49,6 +64,10 @@ def get_settings() -> Settings:
     return Settings()
 
 
+__all__ = ["Settings", "get_settings"]
+
+# Backwards compatibility aliases
+AppConfig = Settings
 config = get_settings()
 
-__all__ = ["Settings", "get_settings", "config"]
+__all__ += ["AppConfig", "config"]
