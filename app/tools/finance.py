@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any, Dict, Optional
+from uuid import uuid4
 
 from pytoniq import Address, LiteClient, WalletV4R2
 
@@ -28,6 +29,7 @@ def check_balance(address: str, endpoint: str | None = None) -> Decimal:
 
     client = _client(endpoint)
     account = client.get_account(Address(address))
+    # TON balances are stored in nanocoins (1e9 = 1 TON)
     return Decimal(account.balance) / Decimal(1e9)
 
 
@@ -63,6 +65,33 @@ def send_ton(
     )
     result = wallet.send_message(transfer)
     return str(result)
+
+
+def create_nft_invoice(
+    buyer_address: str,
+    amount: Decimal,
+    description: str | None = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Generate a placeholder NFT invoice payload for future Tact integration.
+
+    This stub does not perform on-chain deployment. It only prepares the
+    metadata structure and a deterministic invoice identifier so the calling
+    agent can present a payable request to the CFO. Once the Tact contract is
+    finalized, this helper should be updated to deploy the contract and return
+    the live payment link/transaction hash.
+    """
+
+    invoice_id = f"nft-invoice-{uuid4()}"
+    return {
+        "invoice_id": invoice_id,
+        "buyer": buyer_address,
+        "amount_ton": str(amount),
+        "description": description or "Soulbound NFT invoice",
+        "metadata": metadata or {},
+        "status": "pending-signature",
+        "note": "Tact deployment pending; this payload is off-chain only.",
+    }
 
 
 def mint_soulbound_nft(
