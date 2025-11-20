@@ -7,6 +7,10 @@ celery[redis]
 psutil
 python-multipart
 requests
+httpx
+sqlmodel
+pgvector
+pydantic
 pyautogen>=0.2.0
 pydantic-settings
 litellm

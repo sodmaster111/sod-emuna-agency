@@ -43,6 +43,21 @@ class Settings(BaseSettings):
         description="Token budget for generation where applicable",
         env="OLLAMA_MAX_TOKENS",
     )
+    embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="Model identifier used for generating vector embeddings",
+        env="EMBEDDING_MODEL",
+    )
+    embedding_dimensions: int = Field(
+        default=1536,
+        description="Dimensionality of the embedding model output vectors",
+        env="EMBEDDING_DIMENSIONS",
+    )
+    sefaria_base_url: str = Field(
+        default="https://www.sefaria.org/api",
+        description="Base URL for the Sefaria public JSON API",
+        env="SEFARIA_BASE_URL",
+    )
     mission_goal: str = Field(
         default=(
             "Grow the Digital Sanhedrin's assets while remaining halachically and"
