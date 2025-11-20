@@ -12,4 +12,9 @@ docker build -t sod-emuna-agency .
 docker run --rm sod-emuna-agency python main.py
 ```
 
-The `Dockerfile` installs dependencies from `requirements.txt`, so the `autogen` module is available via the `pyautogen` package and the app should start without import errors.
+## Verify `autogen` import inside the image
+```bash
+docker run --rm sod-emuna-agency python -c "import autogen; print('ok')"
+```
+
+The `Dockerfile` installs dependencies from `requirements.txt` before copying the source tree, so the `autogen` module is available via the `pyautogen` package and the app should start without import errors.
