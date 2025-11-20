@@ -1,7 +1,11 @@
 import axios from "axios";
 
+const fallbackApiUrl = "https://api.sodmaster.online";
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const baseURL = configuredApiUrl && configuredApiUrl.length > 0 ? configuredApiUrl : fallbackApiUrl;
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://backend:8000",
+  baseURL,
   headers: {
     "Content-Type": "application/json",
   },
