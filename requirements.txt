@@ -8,3 +8,6 @@ langgraph
 pydantic-settings
 python-jose
 tenacity
+pyautogen
+browser-use
+pytoniq
