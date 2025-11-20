@@ -2,7 +2,7 @@ import { ButtonHTMLAttributes } from "react";
 
 import { ArrowUpRight } from "lucide-react";
 
-interface HeroSectionProps {
+export interface HeroSectionProps {
   eyebrow?: string;
   title: string;
   description?: string;
