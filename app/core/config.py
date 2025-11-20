@@ -1,10 +1,4 @@
-"""Application settings and environment configuration for core services."""
-from __future__ import annotations
-
-from functools import lru_cache
-
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -83,11 +77,14 @@ def get_settings() -> Settings:
 
     return Settings()
 
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
-__all__ = ["Settings", "get_settings"]
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_server}/{self.postgres_db}"
+        )
 
-# Backwards compatibility aliases
-AppConfig = Settings
-config = get_settings()
 
-__all__ += ["AppConfig", "config"]
+settings = Settings()
