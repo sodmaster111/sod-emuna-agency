@@ -13,6 +13,7 @@ from semantic_kernel import Kernel
 from semantic_kernel.connectors.ai.llm.litellm import LiteLLMChatCompletion
 
 from app.core.config import AppConfig, config
+from app.plugins.ton_finance import register_plugin as register_ton_finance
 
 
 class PluginManager:
@@ -76,4 +77,5 @@ def create_kernel(app_config: Optional[AppConfig] = None) -> Kernel:
         temperature=cfg.temperature,
     )
     kernel.add_service(chat_service, service_id="ollama")
+    register_ton_finance(kernel)
     return kernel
