@@ -8,6 +8,7 @@ from typing import AsyncGenerator, List
 from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlmodel import SQLModel
 
 from app.core.config import get_settings
 
@@ -76,8 +77,12 @@ async def init_db() -> None:
     if DISABLE_DATABASE:
         return
 
+    # Import SQLModel tables for metadata registration
+    from app.models.agent import Agent  # noqa: F401
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(SQLModel.metadata.create_all)
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:

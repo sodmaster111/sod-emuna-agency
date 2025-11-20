@@ -10,6 +10,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import SanhedrinCouncil
+from app.api.v1.agents import router as agents_router
 from app.core.config import get_settings
 from app.core.database import Logs, get_async_session, init_db
 from app.core.engine import Engine
@@ -20,6 +21,8 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="SOD Core Infrastructure", version="1.0.0")
+
+app.include_router(agents_router, prefix="/api/v1")
 
 engine = Engine()
 settings = get_settings()
