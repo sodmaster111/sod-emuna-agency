@@ -10,3 +10,6 @@ psycopg[binary]>=3.1.18
 pgvector>=0.2.5
 SQLAlchemy>=2.0.25
 tonutils>=0.0.4
+semantic-kernel
+beautifulsoup4
+psutil
