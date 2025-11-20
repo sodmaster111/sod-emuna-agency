@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from app.agents import SanhedrinCouncil
 from app.core.engine import Engine
 from app.core.memory import MemoryManager
+from app.core.resource_monitor import get_system_health
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -27,13 +28,27 @@ async def _autonomous_loop() -> None:
 
     global latest_plan
     while True:
-        council = SanhedrinCouncil(engine=engine)
-        latest_plan = await asyncio.to_thread(
-            council.convene,
-            "Devise the next operational steps for the Digital Sanhedrin",
-        )
-        logger.info("Latest council plan: %s", latest_plan)
+        latest_plan = await run_autonomous_cycle()
         await asyncio.sleep(engine.loop_interval)
+
+
+async def run_autonomous_cycle() -> List[str]:
+    """Run one autonomous Sanhedrin planning cycle."""
+
+    global latest_plan
+    council = SanhedrinCouncil(engine=engine)
+    latest_plan = await asyncio.to_thread(
+        council.convene,
+        "Devise the next operational steps for the Digital Sanhedrin",
+    )
+    logger.info("Latest council plan: %s", latest_plan)
+    return latest_plan
+
+
+def run_autonomous_cycle_sync() -> List[str]:
+    """Synchronously run the autonomous cycle for task schedulers."""
+
+    return asyncio.run(run_autonomous_cycle())
 
 
 @app.on_event("startup")
@@ -54,10 +69,7 @@ async def _on_shutdown() -> None:
             logger.info("Autonomous loop stopped.")
 
 
-@app.get("/")
-async def healthcheck() -> dict[str, object]:
-    """Basic status endpoint for Coolify health checks."""
-
+def _health_payload() -> dict[str, object]:
     return {
         "status": "online",
         "ollama_base_url": engine.ollama_base_url,
@@ -65,4 +77,19 @@ async def healthcheck() -> dict[str, object]:
         "redis_url": memory_manager.redis_url,
         "qdrant_url": memory_manager.qdrant_url,
         "latest_plan": latest_plan,
+        "system_health": get_system_health(),
     }
+
+
+@app.get("/")
+async def healthcheck() -> dict[str, object]:
+    """Basic status endpoint for Coolify health checks."""
+
+    return _health_payload()
+
+
+@app.get("/health")
+async def extended_healthcheck() -> dict[str, object]:
+    """Extended health endpoint for Docker health checks."""
+
+    return _health_payload()

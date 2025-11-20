@@ -4,6 +4,7 @@ from __future__ import annotations
 from celery import Celery
 
 from app.core.config import config
+from app.main import run_autonomous_cycle_sync
 
 celery_app = Celery(
     "sod_celery",
@@ -15,6 +16,12 @@ celery_app.conf.task_routes = {"app.celery_worker.run_agent_task": {"queue": "ag
 celery_app.conf.task_serializer = "json"
 celery_app.conf.result_serializer = "json"
 celery_app.conf.accept_content = ["json"]
+celery_app.conf.beat_schedule = {
+    "autonomous-loop-6h": {
+        "task": "app.celery_worker.run_autonomous_cycle_task",
+        "schedule": 6 * 60 * 60,
+    }
+}
 
 
 @celery_app.task(name="app.celery_worker.run_agent_task")
@@ -39,4 +46,12 @@ def run_agent_task(agent_role: str, instruction: str) -> dict:
     }
 
 
-__all__ = ["celery_app", "run_agent_task"]
+@celery_app.task(name="app.celery_worker.run_autonomous_cycle_task")
+def run_autonomous_cycle_task() -> dict:
+    """Run the strategic planning loop via Celery on a 6-hour cadence."""
+
+    plan = run_autonomous_cycle_sync()
+    return {"status": "completed", "latest_plan": plan}
+
+
+__all__ = ["celery_app", "run_agent_task", "run_autonomous_cycle_task"]
