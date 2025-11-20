@@ -36,6 +36,11 @@ class Settings(BaseSettings):
         description="Primary mission objective for the council",
         env="MISSION_GOAL",
     )
+    ton_wallet_address: str = Field(
+        default="",
+        description="TON wallet address used for treasury status checks",
+        env="TON_WALLET_ADDRESS",
+    )
 
     class Config:
         env_file = ".env"

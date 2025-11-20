@@ -6,34 +6,33 @@ import { Loader2, Play, Radio } from "lucide-react";
 import api from "@/lib/api";
 
 const POLL_INTERVAL_MS = 5000;
+const DEFAULT_MISSION_GOAL =
+  "Devise the next operational steps for the Digital Sanhedrin";
 
 type CommandState = "idle" | "running" | "success" | "error";
 
-type LogsPayload = string | string[] | { logs?: unknown } | undefined;
+type LogEntry = {
+  id: number;
+  timestamp: string;
+  agent: string;
+  message: string;
+};
 
-function normalizeLogs(payload: LogsPayload): string[] {
-  if (!payload) return [];
+type StatusReport = {
+  health: string;
+  ton_balance: number;
+};
 
-  if (typeof payload === "string") {
-    return payload.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  }
-
-  if (Array.isArray(payload)) {
-    return payload.map((entry) => (typeof entry === "string" ? entry : JSON.stringify(entry)));
-  }
-
-  if (typeof payload === "object" && payload !== null && "logs" in payload) {
-    const { logs } = payload as { logs?: unknown };
-    return normalizeLogs(Array.isArray(logs) || typeof logs === "string" ? logs : undefined);
-  }
-
-  return [];
-}
+type MissionRequest = {
+  goal: string;
+  status?: string | null;
+};
 
 export default function CommandCenterPage() {
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [logError, setLogError] = useState<string | null>(null);
+  const [statusReport, setStatusReport] = useState<StatusReport | null>(null);
   const [commandState, setCommandState] = useState<CommandState>("idle");
   const [commandMessage, setCommandMessage] = useState<string | null>(null);
   const consoleRef = useRef<HTMLDivElement>(null);
@@ -43,9 +42,13 @@ export default function CommandCenterPage() {
 
     const fetchLogs = async () => {
       try {
-        const response = await api.get<LogsPayload>("/logs");
+        const response = await api.get<LogEntry[]>("/api/v1/logs");
         if (!isMounted) return;
-        setLogs(normalizeLogs(response.data));
+        const formattedLogs = response.data.map(
+          (entry) =>
+            `[${new Date(entry.timestamp).toLocaleString()}] ${entry.agent}: ${entry.message}`,
+        );
+        setLogs(formattedLogs);
         setLogError(null);
       } catch (error) {
         if (!isMounted) return;
@@ -72,14 +75,43 @@ export default function CommandCenterPage() {
     }
   }, [logs]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchStatus = async () => {
+      try {
+        const response = await api.get<StatusReport>("/api/v1/status");
+        if (!isMounted) return;
+        setStatusReport(response.data);
+      } catch (error) {
+        if (!isMounted) return;
+        setStatusReport(null);
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   const handleStartMeeting = async () => {
     setCommandState("running");
     setCommandMessage(null);
 
     try {
-      await api.post("/start-meeting");
+      const response = await api.post<MissionRequest>("/api/v1/mission", {
+        goal: DEFAULT_MISSION_GOAL,
+      });
       setCommandState("success");
-      setCommandMessage("Council convened. Backend acknowledged the start command.");
+      setCommandMessage(
+        response.data.status === "running"
+          ? "Council already active. Mission loop confirmed running."
+          : "Council convened. Backend acknowledged the start command.",
+      );
     } catch (error) {
       setCommandState("error");
       setCommandMessage("Failed to convene the council. Verify backend availability.");
@@ -107,7 +139,7 @@ export default function CommandCenterPage() {
                 </span>
                 <div>
                   <p className="text-xs uppercase tracking-[0.25em] text-emerald-300">Live Console</p>
-                  <p className="text-sm text-slate-400">Streaming updates from http://backend:8000/logs</p>
+                  <p className="text-sm text-slate-400">Streaming updates from /api/v1/logs</p>
                 </div>
               </div>
               {isLoadingLogs ? (
@@ -145,6 +177,23 @@ export default function CommandCenterPage() {
               <p className="text-sm text-slate-300">Issue directives to the backend orchestration service.</p>
             </div>
 
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Backend Status</p>
+                  <p className="text-lg font-semibold text-white">
+                    {statusReport ? statusReport.health : "Checking…"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-400">TON Balance</p>
+                  <p className="text-lg font-bold text-emerald-300">
+                    {statusReport ? `${statusReport.ton_balance.toFixed(4)} TON` : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={handleStartMeeting}
@@ -167,7 +216,7 @@ export default function CommandCenterPage() {
               </div>
             ) : (
               <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-400">
-                Press the button to send a POST request to <code className="text-slate-200">/start-meeting</code> on the
+                Press the button to send a POST request to <code className="text-slate-200">/api/v1/mission</code> on the
                 backend service.
               </div>
             )}
