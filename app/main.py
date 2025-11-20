@@ -3,23 +3,29 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+import asyncpg
+import requests
 from fastapi import Depends, FastAPI
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints.agents import router as agents_router
 from app.agents import SanhedrinCouncil
+from app.core import config
 from app.core.config import get_settings
 from app.core.database import Logs, get_async_session, init_db
 from app.core.engine import Engine
 from app.core.memory import MemoryManager
 from app.core.resource_monitor import get_system_health
+from app.tools.ton_wallet import TonWalletTool
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="SOD Core Infrastructure", version="1.0.0")
+app.include_router(agents_router, prefix="/api/v1")
 
 engine = Engine()
 settings = get_settings()
