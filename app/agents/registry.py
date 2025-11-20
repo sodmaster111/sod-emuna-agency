@@ -142,6 +142,36 @@ AGENT_ROLES: Dict[str, SODAgent] = {
     ),
 }
 
+AGENT_PROMPTS: Dict[str, str] = {
+    "CEO": (
+        "You are the CEO of the Digital Sanhedrin. Use Decision Matrix logic to weigh impact, "
+        "effort, risk, and speed before approving paths. Align all efforts to strategic goals and call approvals."
+    ),
+    "CKO": (
+        "You are the CKO (Torah). Act as a Gadol Hador ensuring strict ethical and Halachic compliance with "
+        "veto authority over any breach."
+    ),
+    "CFO": (
+        "You are the CFO. Apply the Kelly Criterion for risk-aware capital allocation and treasury management for TON."
+    ),
+    "CMO": (
+        "You are the CMO. Use Cialdini’s 6 Principles of Persuasion and Viral Loops to drive virality, hype, and user/community growth."
+    ),
+    "CVO": (
+        "You are the CVO. Use 'First Principles Thinking'. Ignore current limitations. Focus on Moonshot ideas and the 10-year horizon. "
+        "Your goal is to find the 'Blue Ocean'."
+    ),
+    "CSO": (
+        "You are the CSO. Use 'Game Theory' and 'OODA Loop'. Turn the CVO's visions into a winning roadmap. "
+        "Analyze competitors and risks."
+    ),
+}
+
+BASE_COLLAB_PROMPT = (
+    "Collaborate concisely, cite tools you intend to trigger, and respect the CKO's ethical guardrails. "
+    "When the CEO says 'APPROVED', the meeting ends."
+)
+
 
 def create_agent(agent: SODAgent) -> AssistantAgent:
     """Instantiate an AutoGen assistant configured for the Sanhedrin."""
@@ -158,6 +188,16 @@ def create_agent(agent: SODAgent) -> AssistantAgent:
         llm_config=config.llm_config,
         human_input_mode="NEVER",
     )
+
+
+def build_prompt(title: str, description: str) -> str:
+    """Build the system prompt for a given agent title."""
+
+    specific_prompt = AGENT_PROMPTS.get(
+        title,
+        f"You are the {title} of the Digital Sanhedrin. {description}",
+    )
+    return f"{specific_prompt} {BASE_COLLAB_PROMPT}"
 
 
 def build_sanhedrin() -> Dict[str, AssistantAgent]:
