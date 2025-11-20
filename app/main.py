@@ -14,8 +14,7 @@ from app.core.config import get_settings
 from app.core.database import Logs, get_async_session, init_db
 from app.core.engine import Engine
 from app.core.memory import MemoryManager
-from app.models import LogEntry, MissionRequest, StatusReport
-from app.tools.ton_wallet import TonWalletTool
+from app.core.resource_monitor import get_system_health
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -42,16 +41,30 @@ async def check_postgres() -> Dict[str, Any]:
 
     global latest_plan
     while True:
-        council = SanhedrinCouncil(engine=engine)
-        latest_plan = await asyncio.to_thread(
-            council.convene,
-            mission_goal,
-        )
-        logger.info("Latest council plan: %s", latest_plan)
+        latest_plan = await run_autonomous_cycle()
         await asyncio.sleep(engine.loop_interval)
 
 async def check_redis() -> Dict[str, Any]:
     """Confirm Redis is reachable and responsive."""
+
+async def run_autonomous_cycle() -> List[str]:
+    """Run one autonomous Sanhedrin planning cycle."""
+
+    global latest_plan
+    council = SanhedrinCouncil(engine=engine)
+    latest_plan = await asyncio.to_thread(
+        council.convene,
+        "Devise the next operational steps for the Digital Sanhedrin",
+    )
+    logger.info("Latest council plan: %s", latest_plan)
+    return latest_plan
+
+
+def run_autonomous_cycle_sync() -> List[str]:
+    """Synchronously run the autonomous cycle for task schedulers."""
+
+    return asyncio.run(run_autonomous_cycle())
+
 
 @app.on_event("startup")
 async def _on_startup() -> None:
@@ -100,49 +113,27 @@ async def health() -> Dict[str, Any]:
     return {"healthy": overall_status, "services": results}
 
 
-@app.get("/")
-async def root() -> Dict[str, Any]:
-    """Base endpoint returning the mission goal and service URLs."""
-
+def _health_payload() -> dict[str, object]:
     return {
-        "mission_goal": config.mission_goal,
-        "database_url": config.database_url,
-        "redis_url": config.redis_url,
-        "ollama_base_url": config.ollama_base_url,
+        "status": "online",
+        "ollama_base_url": engine.ollama_base_url,
+        "database_url": memory_manager.database_url,
+        "redis_url": memory_manager.redis_url,
+        "qdrant_url": memory_manager.qdrant_url,
+        "latest_plan": latest_plan,
+        "system_health": get_system_health(),
     }
 
 
-@app.post("/api/v1/mission", response_model=MissionRequest)
-async def start_mission(payload: MissionRequest) -> MissionRequest:
-    """Launch or resume the Sanhedrin strategic loop."""
+@app.get("/")
+async def healthcheck() -> dict[str, object]:
+    """Basic status endpoint for Coolify health checks."""
 
-    global loop_task, mission_goal
-
-    mission_goal = payload.goal or settings.mission_goal
-
-    if loop_task and not loop_task.done():
-        return MissionRequest(goal=mission_goal, status="running")
-
-    loop_task = asyncio.create_task(_autonomous_loop())
-    return MissionRequest(goal=mission_goal, status="started")
+    return _health_payload()
 
 
-@app.get("/api/v1/logs", response_model=list[LogEntry])
-async def get_logs(session: AsyncSession = Depends(get_async_session)) -> list[LogEntry]:
-    """Return the 50 most recent log entries ordered newest-first."""
+@app.get("/health")
+async def extended_healthcheck() -> dict[str, object]:
+    """Extended health endpoint for Docker health checks."""
 
-    result = await session.execute(select(Logs).order_by(desc(Logs.timestamp)).limit(50))
-    entries = result.scalars().all()
-
-    try:
-        return [LogEntry.model_validate(entry) for entry in entries]
-    except AttributeError:  # pragma: no cover - pydantic v1 fallback
-        return [LogEntry.from_orm(entry) for entry in entries]
-
-
-@app.get("/api/v1/status", response_model=StatusReport)
-async def status() -> StatusReport:
-    """Report backend health and the configured TON balance."""
-
-    ton_balance = ton_wallet.get_balance(address=settings.ton_wallet_address)
-    return StatusReport(health="ok", ton_balance=ton_balance)
+    return _health_payload()

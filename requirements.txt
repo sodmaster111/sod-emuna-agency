@@ -4,6 +4,7 @@ sqlalchemy
 asyncpg
 redis
 celery[redis]
+psutil
 python-multipart
 requests
 pyautogen>=0.2.0
