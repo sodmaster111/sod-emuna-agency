@@ -1,15 +1,10 @@
-pyautogen  # Microsoft AutoGen
-playwright>=1.42.0
-litellm>=1.43.6
-redis>=5.0.0
-asyncpg>=0.29.0
-fastapi>=0.110.0
-uvicorn>=0.23.0
-browser-use>=0.0.14
-psycopg[binary]>=3.1.18
-pgvector>=0.2.5
-SQLAlchemy>=2.0.25
-tonutils>=0.0.4
-semantic-kernel
-beautifulsoup4
-psutil
+fastapi
+uvicorn
+celery[redis]
+sqlalchemy
+asyncpg
+litellm
+langgraph
+pydantic-settings
+python-jose
+tenacity
