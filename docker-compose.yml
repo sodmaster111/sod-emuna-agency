@@ -84,7 +84,7 @@ services:
     expose:
       - "3000"
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=http://app:8000
+      NEXT_PUBLIC_API_URL: https://api.sodmaster.online
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`sodmaster.online`)"
