@@ -1,4 +1,4 @@
-pyautogen>=0.2.34
+pyautogen>=0.2.40
 playwright>=1.42.0
 litellm>=1.43.6
 redis>=5.0.0
