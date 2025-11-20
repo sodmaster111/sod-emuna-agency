@@ -73,6 +73,23 @@ services:
       - "traefik.http.routers.searxng.tls.certresolver=le"
       - "traefik.http.services.searxng.loadbalancer.server.port=8080"
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - sod_network
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://app:8000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`sodmaster.online`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=le"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
   qdrant:
     image: qdrant/qdrant:latest
     restart: unless-stopped
