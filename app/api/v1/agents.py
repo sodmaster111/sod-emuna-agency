@@ -1,76 +1,74 @@
-"""Agent registry API endpoints."""
-from __future__ import annotations
-
-from typing import List
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_async_session
-from app.core.registry import seed_agents
-from app.models.agent import Agent
+from app.agents.factory import AgentFactory
+from app.core.database import get_db
+from app.db.models import Agent, AgentLog, AgentTask
+from app.worker import execute_agent_task
 
-router = APIRouter(prefix="/agents", tags=["agents"])
-
-
-class ConsultationRequest(BaseModel):
-    """Incoming payload to consult an agent."""
-
-    query: str = Field(..., description="Question or task for the selected agent")
+router = APIRouter()
 
 
-class AgentRead(BaseModel):
-    """Serialized representation of an agent."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    name: str
-    role: str
-    system_prompt: str
-    is_c_level: bool
+class ExecuteRequest(BaseModel):
+    agent_name: str
+    task: str
 
 
-class ConsultationResponse(BaseModel):
-    """Mock consultation response payload."""
+@router.post("/agents/execute")
+async def execute_agent(request: ExecuteRequest, db: AsyncSession = Depends(get_db)):
+    try:
+        agent_profile = AgentFactory.get_agent(request.agent_name)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Agent not found")
 
-    agent: AgentRead
-    response: str
+    requires_cro_validation = request.agent_name != "CRO"
 
+    existing_agent_result = await db.execute(select(Agent).where(Agent.name == agent_profile.name))
+    db_agent = existing_agent_result.scalar_one_or_none()
+    if not db_agent:
+        db_agent = Agent(
+            name=agent_profile.name,
+            role=agent_profile.role,
+            dna_prompt=agent_profile.dna_prompt,
+            tools=agent_profile.tools,
+        )
+        db.add(db_agent)
+        await db.flush()
 
-@router.post("/consult", response_model=ConsultationResponse)
-async def consult_agent(
-    payload: ConsultationRequest,
-    session: AsyncSession = Depends(get_async_session),
-) -> ConsultationResponse:
-    """Select an agent from the registry and return a placeholder answer."""
+    log_entry = AgentLog(
+        agent_id=db_agent.id,
+        agent_name=agent_profile.name,
+        action="execute",
+        input_data={"task": request.task},
+        status="queued",
+    )
+    db.add(log_entry)
 
-    await seed_agents(session)
+    task_record = AgentTask(
+        agent_id=db_agent.id,
+        description=request.task,
+        status="queued",
+        requires_cro_validation="pending" if requires_cro_validation else "approved",
+    )
+    db.add(task_record)
+    await db.commit()
+    await db.refresh(log_entry)
+    await db.refresh(task_record)
 
-    result = await session.execute(select(Agent))
-    agents = result.scalars().all()
-    if not agents:
-        raise HTTPException(status_code=503, detail="No agents available")
-
-    selected_agent = next((agent for agent in agents if agent.is_c_level), agents[0])
-    mock_response = (
-        f"[Mocked] {selected_agent.role} '{selected_agent.name}' received: {payload.query}"
+    execute_agent_task.delay(
+        agent_name=request.agent_name,
+        task_description=request.task,
+        log_id=log_entry.id,
+        task_id=task_record.id,
+        requires_cro_validation=requires_cro_validation,
     )
 
-    return ConsultationResponse(agent=selected_agent, response=mock_response)
-
-
-@router.get("", response_model=List[AgentRead])
-async def list_agents(session: AsyncSession = Depends(get_async_session)) -> List[AgentRead]:
-    """Return all registered agents from the database."""
-
-    await seed_agents(session)
-
-    result = await session.execute(select(Agent))
-    return list(result.scalars().all())
-
-
-__all__ = ["router"]
+    return {
+        "agent": agent_profile.name,
+        "task": request.task,
+        "status": "queued",
+        "requires_cro_validation": requires_cro_validation,
+        "message": "Task sent to Celery worker",
+    }

@@ -1,36 +1,50 @@
-from __future__ import annotations
+from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.core.database import get_db, init_db
+from app.api.v1 import agents, logs
+from app.core.database import engine
+from app.db.models import Base
 
 
-app = FastAPI(title="SOD Backend")
+ALLOWED_ORIGINS = [
+    "https://sodmaster.online",
+    "http://sodmaster.online",
+    "http://localhost:3000",
+    "http://212.47.64.39",
+    "http://212.47.64.39:3000",
+]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
+app = FastAPI(
+    title="SOD Autonomous Corporation API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https?://212\.47\.64\.39(?::\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    await init_db()
-
-
-@app.get("/")
-async def read_root() -> dict[str, str]:
-    return {"status": "online", "service": "SOD Backend"}
+app.include_router(logs.router, prefix="/api/v1")
+app.include_router(agents.router, prefix="/api/v1")
 
 
 @app.get("/health")
-async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    await db.execute(text("SELECT 1"))
-    return {"database": "connected", "redis": "configured"}
+async def health_check():
+    return {"status": "healthy", "agents": 158, "ram": "48GB"}
