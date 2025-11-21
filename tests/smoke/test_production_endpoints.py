@@ -41,7 +41,6 @@ def test_backend_health_deep():
         assert key in payload, f"Expected '{key}' in deep health payload"
 
 
-@pytest.mark.xfail(reason="Telegram gateway status endpoint pending implementation")
 def test_tg_gateway_basic():
     response = _get("https://tg.sodmaster.online/api/status")
     assert response.status_code == 200
