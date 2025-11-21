@@ -26,6 +26,9 @@ export default async function DashboardLayout({
             <Link className="rounded-lg px-3 py-2 transition hover:bg-white/5" href="/dashboard">
               Overview
             </Link>
+            <Link className="rounded-lg px-3 py-2 transition hover:bg-white/5" href="/dashboard/analytics">
+              Analytics
+            </Link>
             <Link className="rounded-lg px-3 py-2 transition hover:bg-white/5" href="/dashboard/pinkas">
               Pinkas Logs
             </Link>
