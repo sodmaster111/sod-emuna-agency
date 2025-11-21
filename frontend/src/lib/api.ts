@@ -1,7 +1,10 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://api.sodmaster.online",
+  baseURL:
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "https://api.sodmaster.online",
   headers: {
     "Content-Type": "application/json",
   },
