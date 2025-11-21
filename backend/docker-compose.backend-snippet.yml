@@ -1,0 +1,16 @@
+backend:
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  env_file:
+    - ./backend/.env
+  depends_on:
+    - postgres
+    - redis
+  expose:
+    - "8000"
+  environment:
+    - VIRTUAL_HOST=api.sodmaster.online
+    - LETSENCRYPT_HOST=api.sodmaster.online
+    - LETSENCRYPT_EMAIL=admin@sodmaster.online
