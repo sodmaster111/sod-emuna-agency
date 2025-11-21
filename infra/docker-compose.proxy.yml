@@ -1,0 +1,125 @@
+version: "3.9"
+
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/vhost.d:/etc/nginx/vhost.d
+      - ./nginx/html:/usr/share/nginx/html
+      - ./nginx/certs:/etc/nginx/certs:rw
+    environment:
+      DEFAULT_HOST: www.sodmaster.online
+    networks:
+      - proxy
+
+  nginx-proxy-acme:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    restart: unless-stopped
+    depends_on:
+      - nginx-proxy
+    environment:
+      NGINX_PROXY_CONTAINER: nginx-proxy
+      DEFAULT_EMAIL: admin@sodmaster.online
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./nginx/certs:/etc/nginx/certs:rw
+      - ./nginx/vhost.d:/etc/nginx/vhost.d
+      - ./nginx/html:/usr/share/nginx/html
+    networks:
+      - proxy
+
+  frontend:
+    image: frontend:latest
+    environment:
+      VIRTUAL_HOST: www.sodmaster.online
+      LETSENCRYPT_HOST: www.sodmaster.online
+      LETSENCRYPT_EMAIL: admin@sodmaster.online
+      VIRTUAL_PORT: 3000
+    expose:
+      - "3000"
+    networks:
+      - proxy
+
+  command-center:
+    image: command-center:latest
+    environment:
+      VIRTUAL_HOST: admin.sodmaster.online
+      LETSENCRYPT_HOST: admin.sodmaster.online
+      LETSENCRYPT_EMAIL: admin@sodmaster.online
+      VIRTUAL_PORT: 3000
+    expose:
+      - "3000"
+    networks:
+      - proxy
+
+  backend:
+    image: backend:latest
+    environment:
+      VIRTUAL_HOST: api.sodmaster.online
+      LETSENCRYPT_HOST: api.sodmaster.online
+      LETSENCRYPT_EMAIL: admin@sodmaster.online
+      VIRTUAL_PORT: 8000
+    expose:
+      - "8000"
+    networks:
+      - proxy
+
+  telegram-gateway:
+    image: telegram-gateway:latest
+    environment:
+      VIRTUAL_HOST: tg.sodmaster.online
+      LETSENCRYPT_HOST: tg.sodmaster.online
+      LETSENCRYPT_EMAIL: admin@sodmaster.online
+      VIRTUAL_PORT: 8080
+    expose:
+      - "8080"
+    networks:
+      - proxy
+
+  wa-gateway:
+    image: wa-gateway:latest
+    environment:
+      VIRTUAL_HOST: wa.sodmaster.online
+      LETSENCRYPT_HOST: wa.sodmaster.online
+      LETSENCRYPT_EMAIL: admin@sodmaster.online
+      VIRTUAL_PORT: 9000
+    expose:
+      - "9000"
+    networks:
+      - proxy
+
+  brain:
+    image: brain:latest
+    environment:
+      VIRTUAL_HOST: brain.sodmaster.online
+      LETSENCRYPT_HOST: brain.sodmaster.online
+      LETSENCRYPT_EMAIL: admin@sodmaster.online
+      VIRTUAL_PORT: 11434
+    expose:
+      - "11434"
+    networks:
+      - proxy
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    environment:
+      VIRTUAL_HOST: monitor.sodmaster.online
+      LETSENCRYPT_HOST: monitor.sodmaster.online
+      LETSENCRYPT_EMAIL: admin@sodmaster.online
+      VIRTUAL_PORT: 3000
+    expose:
+      - "3000"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    driver: bridge
