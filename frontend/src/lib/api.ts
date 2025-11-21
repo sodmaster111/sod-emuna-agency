@@ -1,15 +1,23 @@
 import axios from "axios";
 
-const fallbackApiUrl = "https://api.sodmaster.online";
-const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-const baseURL = configuredApiUrl && configuredApiUrl.length > 0 ? configuredApiUrl : fallbackApiUrl;
-
 const api = axios.create({
-  baseURL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://api.sodmaster.online",
   headers: {
     "Content-Type": "application/json",
   },
   timeout: 10000,
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error("API request failed", {
+      url: error?.config?.url,
+      status: error?.response?.status,
+      message: error?.message,
+    });
+    return Promise.reject(error);
+  },
+);
 
 export default api;

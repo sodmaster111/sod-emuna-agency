@@ -1,38 +1,35 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Play, Radio } from "lucide-react";
+import { BadgeCheck, Loader2, Play, Radio, WifiOff } from "lucide-react";
 
 import api from "@/lib/api";
 
-const POLL_INTERVAL_MS = 5000;
-const DEFAULT_MISSION_GOAL =
-  "Devise the next operational steps for the Digital Sanhedrin";
+const HEALTH_POLL_INTERVAL = 2000;
+const LOG_POLL_INTERVAL = 2000;
+const DEFAULT_MISSION_GOAL = "Devise the next operational steps for the Digital Sanhedrin";
 
 type CommandState = "idle" | "running" | "success" | "error";
 
-type LogEntry = {
-  id: number;
-  timestamp: string;
-  agent: string;
-  message: string;
+type LogEntry = string;
+
+type MissionResponse = {
+  status?: string;
 };
 
-type StatusReport = {
-  health: string;
-  ton_balance: number;
+type HealthResponse = {
+  status?: string;
 };
 
-type MissionRequest = {
-  goal: string;
-  status?: string | null;
-};
+type BackendState = "checking" | "online" | "offline";
 
 export default function CommandCenterPage() {
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [logError, setLogError] = useState<string | null>(null);
-  const [statusReport, setStatusReport] = useState<StatusReport | null>(null);
+  const [backendStatus, setBackendStatus] = useState<BackendState>("checking");
+  const [backendMessage, setBackendMessage] = useState("Verifying connection…");
   const [commandState, setCommandState] = useState<CommandState>("idle");
   const [commandMessage, setCommandMessage] = useState<string | null>(null);
   const consoleRef = useRef<HTMLDivElement>(null);
@@ -42,17 +39,21 @@ export default function CommandCenterPage() {
 
     const fetchLogs = async () => {
       try {
-        const response = await api.get<LogEntry[]>("/api/v1/logs");
+        const response = await api.get("/api/v1/logs");
         if (!isMounted) return;
-        const formattedLogs = response.data.map(
-          (entry) =>
-            `[${new Date(entry.timestamp).toLocaleString()}] ${entry.agent}: ${entry.message}`,
-        );
-        setLogs(formattedLogs);
+
+        const data = response.data;
+        const formatted: string[] = Array.isArray(data)
+          ? data.map((entry) => (typeof entry === "string" ? entry : JSON.stringify(entry)))
+          : typeof data === "string"
+            ? data.split(/\n+/).filter(Boolean)
+            : [];
+
+        setLogs(formatted);
         setLogError(null);
       } catch (error) {
         if (!isMounted) return;
-        setLogError("Unable to reach backend logs. The system will retry automatically.");
+        setLogError("Backend unreachable. Retrying automatically.");
       } finally {
         if (isMounted) {
           setIsLoadingLogs(false);
@@ -61,7 +62,7 @@ export default function CommandCenterPage() {
     };
 
     fetchLogs();
-    const interval = setInterval(fetchLogs, POLL_INTERVAL_MS);
+    const interval = setInterval(fetchLogs, LOG_POLL_INTERVAL);
 
     return () => {
       isMounted = false;
@@ -78,19 +79,23 @@ export default function CommandCenterPage() {
   useEffect(() => {
     let isMounted = true;
 
-    const fetchStatus = async () => {
+    const checkBackend = async () => {
       try {
-        const response = await api.get<StatusReport>("/api/v1/status");
+        const response = await api.get<HealthResponse>("/health");
         if (!isMounted) return;
-        setStatusReport(response.data);
+
+        const reportedStatus = response.data?.status || "Operational";
+        setBackendStatus("online");
+        setBackendMessage(reportedStatus);
       } catch (error) {
         if (!isMounted) return;
-        setStatusReport(null);
+        setBackendStatus("offline");
+        setBackendMessage("Backend unreachable");
       }
     };
 
-    fetchStatus();
-    const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
+    checkBackend();
+    const interval = setInterval(checkBackend, HEALTH_POLL_INTERVAL);
 
     return () => {
       isMounted = false;
@@ -103,12 +108,13 @@ export default function CommandCenterPage() {
     setCommandMessage(null);
 
     try {
-      const response = await api.post<MissionRequest>("/api/v1/mission", {
+      const response = await api.post<MissionResponse>("/api/v1/mission", {
         goal: DEFAULT_MISSION_GOAL,
       });
+
       setCommandState("success");
       setCommandMessage(
-        response.data.status === "running"
+        response.data?.status === "running"
           ? "Council already active. Mission loop confirmed running."
           : "Council convened. Backend acknowledged the start command.",
       );
@@ -118,12 +124,39 @@ export default function CommandCenterPage() {
     }
   };
 
+  const backendIndicator = (() => {
+    if (backendStatus === "online") {
+      return (
+        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-200">
+          <BadgeCheck className="h-4 w-4" /> Online
+        </span>
+      );
+    }
+
+    if (backendStatus === "offline") {
+      return (
+        <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-200">
+          <WifiOff className="h-4 w-4" /> Backend Unreachable
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full bg-slate-500/15 px-3 py-1 text-xs font-semibold text-slate-200">
+        <Loader2 className="h-4 w-4 animate-spin" /> Checking…
+      </span>
+    );
+  })();
+
   return (
     <main className="min-h-screen">
       <section className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12">
         <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl shadow-emerald-500/10">
           <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">SOD Autonomous Corporation</p>
-          <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Command Center</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h1 className="text-4xl font-bold sm:text-5xl">Command Center</h1>
+            {backendIndicator}
+          </div>
           <p className="mt-4 max-w-3xl text-slate-300">
             A hardened offline-ready interface to supervise and activate the Python backend. Monitor live logs and
             dispatch mission-critical directives with confidence.
@@ -138,7 +171,7 @@ export default function CommandCenterPage() {
                   <Radio className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-emerald-300">Live Console</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-emerald-300">Live Logs</p>
                   <p className="text-sm text-slate-400">Streaming updates from /api/v1/logs</p>
                 </div>
               </div>
@@ -181,15 +214,11 @@ export default function CommandCenterPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">Backend Status</p>
-                  <p className="text-lg font-semibold text-white">
-                    {statusReport ? statusReport.health : "Checking…"}
-                  </p>
+                  <p className="text-lg font-semibold text-white">{backendMessage}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-400">TON Balance</p>
-                  <p className="text-lg font-bold text-emerald-300">
-                    {statusReport ? `${statusReport.ton_balance.toFixed(4)} TON` : "—"}
-                  </p>
+                  <p className="text-xs text-slate-400">Connection</p>
+                  {backendIndicator}
                 </div>
               </div>
             </div>
