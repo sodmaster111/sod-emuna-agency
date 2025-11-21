@@ -1,0 +1,16 @@
+postgres:
+  host: postgres
+  port: 5432
+  db: sod
+  user: sod_user
+  password: sod_password
+local_backup_dir: /backups
+retention_days: 7
+data_directories:
+  - /data/uploads
+s3:
+  enabled: false
+  endpoint: https://s3.example.com
+  bucket: sod-backups
+  access_key: YOUR_ACCESS_KEY
+  secret_key: YOUR_SECRET_KEY
