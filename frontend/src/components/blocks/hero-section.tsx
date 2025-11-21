@@ -1,6 +1,6 @@
-import { ButtonHTMLAttributes } from "react";
-
 import { ArrowUpRight } from "lucide-react";
+
+import { Button } from "@/app/ui/button";
 
 export interface HeroSectionProps {
   eyebrow?: string;
@@ -38,7 +38,12 @@ export function HeroSection({
           <p className="text-lg leading-relaxed text-[var(--color-muted)] md:text-xl">{description}</p>
         ) : null}
         <div className="flex flex-wrap gap-4">
-          <CTAButton href={ctaHref}>{ctaLabel}</CTAButton>
+          <Button asChild href={ctaHref}>
+            <a className="inline-flex items-center gap-2">
+              {ctaLabel}
+              <ArrowUpRight className="h-4 w-4" />
+            </a>
+          </Button>
           {secondaryCta ? (
             <a
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:-translate-y-0.5 hover:border-[var(--color-accent)]"
@@ -54,27 +59,5 @@ export function HeroSection({
         <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[var(--color-primary)]/25" />
       </div>
     </section>
-  );
-}
-
-function CTAButton({ href, children, ...props }: ButtonHTMLAttributes<HTMLAnchorElement>) {
-  if (href) {
-    return (
-      <a
-        {...props}
-        className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-black shadow-lg shadow-[var(--color-primary)]/20 transition hover:-translate-y-0.5 hover:shadow-xl"
-        href={href}
-      >
-        {children}
-        <ArrowUpRight className="h-4 w-4" />
-      </a>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-black shadow-lg shadow-[var(--color-primary)]/20">
-      {children}
-      <ArrowUpRight className="h-4 w-4" />
-    </span>
   );
 }

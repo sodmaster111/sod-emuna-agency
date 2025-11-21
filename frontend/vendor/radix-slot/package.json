@@ -1,0 +1,7 @@
+{
+  "name": "@radix-ui/react-slot",
+  "version": "1.0.0-local",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT"
+}
