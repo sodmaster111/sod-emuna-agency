@@ -1,0 +1,80 @@
+name: Build and Deploy to Contabo
+
+# Required secrets:
+# - CR_PAT: Personal access token for pushing to container registry (or rely on GITHUB_TOKEN permissions)
+# - VPS_SSH_KEY: Private key with access to the Contabo VPS
+# - VPS_HOST: VPS hostname or IP (e.g., 212.47.64.39)
+# - VPS_USER: SSH user for the VPS (e.g., root)
+# Built-in token:
+# - GITHUB_TOKEN: Provided by GitHub, used when CR_PAT is not supplied
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  IMAGE_PREFIX: ${{ github.event.repository.name }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CR_PAT != '' && secrets.CR_PAT || github.token }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_PREFIX }}-backend:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+      IMAGE_PREFIX: ${{ github.event.repository.name }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+    steps:
+      - name: Start SSH agent and add key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Add VPS to known hosts
+        run: ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Copy deployment compose file to server (optional if already present)
+        run: |
+          scp docker-compose.deploy.yml "$VPS_USER@$VPS_HOST:/opt/sod-emuna-agency/docker-compose.yml"
+
+      - name: Pull and restart services on VPS
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" <<'EOSSH'
+          cd /opt/sod-emuna-agency
+          docker compose pull
+          docker compose up -d
+          EOSSH
