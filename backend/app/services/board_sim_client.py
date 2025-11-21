@@ -1,12 +1,9 @@
-from __future__ import annotations
+from langgraph_core.board_sim.schemas import BoardDecision, Proposal
+from langgraph_core.board_sim.simulation import simulate_board_meeting
 
-from typing import Any, Dict
 
+def run_board_simulation(proposal_data: dict) -> BoardDecision:
+    """Build a proposal model and run the board simulation."""
 
-async def run_board_simulation(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Stub board simulation client.
-
-    Replace with real implementation that calls the board simulation service.
-    """
-
-    return {"final_stance": "approved", "payload": payload}
+    proposal = Proposal(**proposal_data)
+    return simulate_board_meeting(proposal)
