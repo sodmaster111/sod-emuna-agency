@@ -1,68 +1,57 @@
-"""Generate daily Torah content variants and persist them."""
+"""Helpers for persisting generated content and enriching with translations."""
 from __future__ import annotations
 
-import asyncio
-from typing import Optional
+import logging
+from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import AsyncSessionLocal
-from app.models.content import ContentCategory, ContentItem
-from app.models.generated_content import GeneratedContent
+from app.services.translation import TranslationService
 
-
-async def translate(text: str, lang: str) -> str:
-    """Stub translation helper; integrate orchestrator or external API later."""
-
-    return text
+logger = logging.getLogger(__name__)
 
 
-class DailyContentGenerator:
-    """Service for generating and storing daily content variations."""
+async def save_generated_content(
+    session: AsyncSession,
+    generated_content: Any,
+    *,
+    translation_service: TranslationService | None = None,
+) -> Any:
+    """Persist generated content then enrich it with translations."""
 
-    def __init__(self, session_factory=AsyncSessionLocal):
-        self.session_factory = session_factory
+    session.add(generated_content)
+    await session.commit()
+    await session.refresh(generated_content)
 
-    async def _fetch_random_source(
-        self, session, category_slug: str
-    ) -> Optional[ContentItem]:
-        query = (
-            select(ContentItem)
-            .join(ContentCategory)
-            .where(ContentCategory.slug == category_slug, ContentItem.is_active.is_(True))
-            .order_by(func.random())
-            .limit(1)
-        )
-        result = await session.execute(query)
-        return result.scalar_one_or_none()
-
-    async def generate_one(self, category_slug: str) -> GeneratedContent:
-        """Create and persist a generated content entry for the given category."""
-
-        async with self.session_factory() as session:
-            source_item = await self._fetch_random_source(session, category_slug)
-            if not source_item:
-                raise ValueError(f"No active content found for category '{category_slug}'")
-
-            raw_text = source_item.body_he
-            generated_he = raw_text
-            generated_ru = await translate(raw_text, "ru")
-            generated_en = await translate(raw_text, "en")
-
-            generated_entry = GeneratedContent(
-                source_id=source_item.id,
-                raw_source_text=raw_text,
-                generated_he=generated_he,
-                generated_ru=generated_ru,
-                generated_en=generated_en,
-                tags=list(source_item.tags or []),
-            )
-            session.add(generated_entry)
-            await session.commit()
-            await session.refresh(generated_entry)
-            return generated_entry
+    await _translate_generated_content(session, generated_content, translation_service)
+    return generated_content
 
 
-if __name__ == "__main__":
-    generator = DailyContentGenerator()
-    asyncio.run(generator.generate_one("tehillim"))
+async def _translate_generated_content(
+    session: AsyncSession,
+    generated_content: Any,
+    translation_service: TranslationService | None = None,
+) -> None:
+    service = translation_service or TranslationService()
+
+    source_text = getattr(generated_content, "body_he", None)
+    if not source_text:
+        logger.debug("Generated content %s has no Hebrew body to translate", getattr(generated_content, "id", None))
+        return
+
+    logger.info(
+        "Translating generated content %s to English and Russian",
+        getattr(generated_content, "id", None),
+    )
+
+    generated_content.body_en = await service.translate_he_to_en(source_text)
+    generated_content.body_ru = await service.translate_he_to_ru(source_text)
+
+    session.add(generated_content)
+    await session.commit()
+    await session.refresh(generated_content)
+
+    logger.debug(
+        "Completed translation for generated content %s",
+        getattr(generated_content, "id", None),
+    )
