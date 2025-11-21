@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import Base, engine
+from app.core.logging import configure_logging
+from app.core.middleware import RequestContextLogMiddleware
 from app.db import models
 
 
@@ -15,12 +17,16 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+configure_logging()
+
 app = FastAPI(
     title="SOD Autonomous Corporation API",
     version="1.0.0",
     description="Digital Sanhedrin - 158 AI Agents for Algorithmic Evangelism",
     lifespan=lifespan,
 )
+
+app.add_middleware(RequestContextLogMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
