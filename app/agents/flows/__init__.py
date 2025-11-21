@@ -1,5 +1,5 @@
-"""Flow definitions for multi-agent orchestration."""
+"""Composable mission flows for the SOD-EMUNA agency."""
 
-from app.agents.flows.simple_mission import SimpleMissionFlow
+from app.agents.flows.simple_mission import SimpleMissionGraph, run_simple_mission
 
-__all__ = ["SimpleMissionFlow"]
+__all__ = ["SimpleMissionGraph", "run_simple_mission"]

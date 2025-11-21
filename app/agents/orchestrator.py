@@ -1,9 +1,9 @@
-"""Mission orchestration layer for agent workflows.
+"""Mission orchestrator for the SOD-EMUNA agency.
 
 Dependencies:
-- langgraph (preferred for graph orchestration) – add to requirements.txt if available.
-- If langgraph is unavailable in the environment, this module uses the internal simple
-  flow runner defined in :mod:`app.agents.flows.simple_mission`.
+- Designed to integrate with `langgraph` or similar orchestration libraries.
+  The backend already includes `langgraph` in `backend/requirements.txt`;
+  ensure it is installed in the runtime environment.
 """
 from __future__ import annotations
 
@@ -12,95 +12,94 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict
 
-from app.agents.flows.simple_mission import SimpleMissionFlow
+from app.agents.flows.simple_mission import FlowContext, run_simple_mission
+from app.agents.registry import AGENTS
 
 logger = logging.getLogger(__name__)
 
 
 class MissionType(str, Enum):
-    """Enumeration of supported mission types."""
-
-    PRAYER_DISTRIBUTION = "prayer_distribution"
-    RESEARCH = "research"
-    CONTENT_CREATION = "content_creation"
+    PRAYER_DISTRIBUTION = "PRAYER_DISTRIBUTION"
+    RESEARCH = "RESEARCH"
+    CONTENT_CREATION = "CONTENT_CREATION"
 
 
 @dataclass
 class MissionTask:
-    """Incoming mission specification for the orchestrator."""
-
     mission_type: MissionType
     user_id: str | int
     payload: Dict[str, Any]
 
 
 def select_primary_agent(mission_type: MissionType, payload: Dict[str, Any] | None = None) -> str:
-    """Resolve the primary agent responsible for the mission.
-
-    Args:
-        mission_type: MissionType to route.
-        payload: Optional payload for further disambiguation.
-
-    Returns:
-        The agent key registered in :mod:`app.agents.registry`.
-    """
-
-    payload = payload or {}
+    """Route the mission to the most appropriate primary agent."""
 
     if mission_type is MissionType.PRAYER_DISTRIBUTION:
         return "Evangelist"
     if mission_type is MissionType.RESEARCH:
         return "Researcher"
     if mission_type is MissionType.CONTENT_CREATION:
-        # Choose based on desired output style.
-        preferred_channel = payload.get("channel")
-        if preferred_channel in {"visual", "design", "graphics"}:
+        if payload and payload.get("requires_visuals"):
             return "Designer"
         return "Editor"
-
     raise ValueError(f"Unsupported mission type: {mission_type}")
 
 
 async def run_mission(task: MissionTask) -> Dict[str, Any]:
-    """Entrypoint for executing a mission through the orchestration layer.
-
-    Builds a graph-based flow for the mission, executes it, logs each step via
-    individual agents' Pinkas logging, and returns a normalized result.
-    """
-
-    logger.info("Starting mission", extra={"mission_type": task.mission_type, "user_id": task.user_id})
+    """Execute a mission by constructing and running the mission graph."""
 
     primary_agent = select_primary_agent(task.mission_type, task.payload)
-    flow = SimpleMissionFlow(task=task, primary_agent=primary_agent)
+    logger.info("Routing mission", extra={"mission_type": task.mission_type.value, "agent": primary_agent})
+
+    context = FlowContext(
+        mission_type=task.mission_type.value,
+        user_id=task.user_id,
+        payload=task.payload,
+        primary_agent=primary_agent,
+    )
 
     try:
-        mission_result = await flow.run()
-    except Exception as exc:  # pragma: no cover - orchestration-level safeguard
-        logger.exception("Mission failed", exc_info=exc)
+        context = await run_simple_mission(context)
+        summary = context.final_message or f"Mission {task.mission_type.value} completed by {primary_agent}"
         return {
-            "status": "failed",
-            "summary": f"Mission failed: {exc}",
-            "data": {"error": str(exc)},
+            "status": "success",
+            "summary": summary,
+            "data": {
+                "history": context.history,
+                "analysis": context.analysis,
+                "plan": context.plan,
+                "execution": context.execution,
+                "primary_agent": primary_agent,
+            },
         }
-
-    summary = mission_result.get("summary", "Mission completed")
-    return {"status": "success", "summary": summary, "data": mission_result}
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.exception("Mission execution failed", exc_info=exc)
+        agent = AGENTS.get(primary_agent)
+        if agent:
+            agent.log_to_pinkas("error", detail=str(exc))
+        return {"status": "failed", "summary": str(exc), "data": {}}
 
 
 async def execute_celery_mission(mission_payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Adapter used by Celery tasks to execute a mission.
+    """Adapter for Celery tasks to execute missions asynchronously."""
 
-    Args:
-        mission_payload: Raw payload received from Celery, expected to contain
-            ``mission_type`` (str), ``user_id`` (str|int), and ``payload`` (dict).
+    mission_type_value = mission_payload.get("mission_type")
+    if not mission_type_value:
+        raise ValueError("mission_type is required")
 
-    Returns:
-        Normalized mission execution result.
-    """
-
-    mission_type = MissionType(mission_payload.get("mission_type"))
-    user_id = mission_payload.get("user_id")
-    payload = mission_payload.get("payload", {})
-
-    task = MissionTask(mission_type=mission_type, user_id=user_id, payload=payload)
+    mission_type = MissionType(mission_type_value)
+    task = MissionTask(
+        mission_type=mission_type,
+        user_id=mission_payload.get("user_id", "anonymous"),
+        payload=mission_payload.get("payload", {}),
+    )
     return await run_mission(task)
+
+
+__all__ = [
+    "MissionTask",
+    "MissionType",
+    "select_primary_agent",
+    "run_mission",
+    "execute_celery_mission",
+]
