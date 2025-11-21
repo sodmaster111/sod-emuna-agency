@@ -1,10 +1,19 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function DashboardLayout({
+import { getUserFromCookies } from "@/app/lib/auth";
+
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getUserFromCookies();
+
+  if (!user || user.role !== "admin") {
+    redirect("/login");
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <header className="border-b border-white/10 bg-slate-900/70 backdrop-blur">

@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { API_BASE_URL } from "@/lib/config";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -16,7 +16,8 @@ export default function LoginPage() {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        credentials: "include",
+        body: JSON.stringify({ username, password })
       });
 
       if (response.ok) {
@@ -38,17 +39,17 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="space-y-2">
-            <label className="text-sm text-slate-300" htmlFor="email">
-              Email
+            <label className="text-sm text-slate-300" htmlFor="username">
+              Username
             </label>
             <input
-              id="email"
-              type="email"
+              id="username"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="w-full rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none"
-              placeholder="ops@sodmaster.online"
+              placeholder="admin"
             />
           </div>
 
