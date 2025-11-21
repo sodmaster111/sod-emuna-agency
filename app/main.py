@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.api import api_router
 from app.api.v1 import agents, logs
 from app.core.database import engine
 from app.db.models import Base
@@ -41,10 +42,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(api_router)
 app.include_router(logs.router, prefix="/api/v1")
 app.include_router(agents.router, prefix="/api/v1")
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "agents": 158, "ram": "48GB"}
