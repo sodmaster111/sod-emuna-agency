@@ -1,50 +1,68 @@
-from functools import lru_cache
+"""Application configuration management using Pydantic settings."""
+from __future__ import annotations
 
-from pydantic_settings import BaseSettings
+import logging
+from functools import lru_cache
+from typing import Optional
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///./app.db"
+DEFAULT_REDIS_URL = "redis://redis:6379/0"
+DEFAULT_ENVIRONMENT = "development"
 
 
 class Settings(BaseSettings):
-    """Application configuration loaded from environment variables."""
+    """Core application settings sourced from the environment."""
 
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:sodpassword@postgresql:5432/sod_db"
-    REDIS_URL: str = "redis://redis:6379/0"
-    OLLAMA_BASE_URL: str = "http://ollama:11434/v1"
-    OLLAMA_MODEL: str = "llama3.1:8b"
-    HOST: str = "0.0.0.0"
-    PORT: int = 8001
-    DEBUG_SQL: bool = False
+    DATABASE_URL: Optional[str] = None
+    REDIS_URL: Optional[str] = None
+    ENVIRONMENT: Optional[str] = None
 
-    @property
-    def redis_url(self) -> str:
-        return self.REDIS_URL
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    def model_post_init(self, __context: object) -> None:  # noqa: D401
+        """Assign fallbacks and log warnings for missing variables."""
+
+        missing_vars: list[str] = []
+
+        if not self.DATABASE_URL:
+            missing_vars.append("DATABASE_URL")
+            object.__setattr__(self, "DATABASE_URL", DEFAULT_DATABASE_URL)
+
+        if not self.REDIS_URL:
+            missing_vars.append("REDIS_URL")
+            object.__setattr__(self, "REDIS_URL", DEFAULT_REDIS_URL)
+
+        if not self.ENVIRONMENT:
+            missing_vars.append("ENVIRONMENT")
+            object.__setattr__(self, "ENVIRONMENT", DEFAULT_ENVIRONMENT)
+
+        if missing_vars:
+            logger.warning(
+                "Missing environment variables for settings: %s. Using default values.",
+                ", ".join(missing_vars),
+            )
 
     @property
     def database_url(self) -> str:
-        return self.DATABASE_URL
+        return self.DATABASE_URL or DEFAULT_DATABASE_URL
 
     @property
-    def ollama_base_url(self) -> str:
-        return self.OLLAMA_BASE_URL
+    def redis_url(self) -> str:
+        return self.REDIS_URL or DEFAULT_REDIS_URL
 
     @property
-    def ollama_model(self) -> str:
-        return self.OLLAMA_MODEL
-
-    @property
-    def host(self) -> str:
-        return self.HOST
-
-    @property
-    def port(self) -> int:
-        return self.PORT
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    def environment(self) -> str:
+        return self.ENVIRONMENT or DEFAULT_ENVIRONMENT
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    """Return a cached settings instance."""
+
     return Settings()
 
 
