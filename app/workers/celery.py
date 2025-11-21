@@ -11,6 +11,7 @@ from kombu import Queue
 from app.core.config import settings
 from app.db.session import async_session_factory
 from app.models.pinkas import Pinkas
+from app.services.missions_runner import _mark_failed, execute_mission_instance
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,10 @@ async def _write_pinkas_entry(
     """Persist a Pinkas entry asynchronously."""
 
     async with async_session_factory() as session:
-        record = Pinkas(agent=agent, action=action, status=status, payload=payload, meta=meta)
+        merged_payload = payload if isinstance(payload, dict) else {"payload": payload}
+        if meta:
+            merged_payload = {**(merged_payload or {}), "meta": meta}
+        record = Pinkas(agent=agent, action=action, status=status, payload=merged_payload)
         session.add(record)
         await session.commit()
 
@@ -79,4 +83,17 @@ def log_task_failure(sender: Task | None = None, exception: Exception | None = N
     )
 
 
-__all__ = ["celery_app", "AgentTask"]
+@celery_app.task(name="missions.execute_instance", bind=True)
+def execute_mission_instance_task(self: Task, instance_id: int) -> dict:
+    """Execute a mission instance through the mission runner."""
+
+    logger.info("Launching mission execution", extra={"instance_id": instance_id, "task_id": self.request.id})
+    try:
+        return asyncio.run(execute_mission_instance(instance_id))
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.exception("Mission execution task failed", exc_info=exc)
+        asyncio.run(_mark_failed(instance_id, str(exc)))
+        raise
+
+
+__all__ = ["celery_app", "AgentTask", "execute_mission_instance_task"]
