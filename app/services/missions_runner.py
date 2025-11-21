@@ -10,6 +10,7 @@ import httpx
 
 from app.agents.orchestrator import MissionTask, MissionType, run_mission
 from app.core.config import settings
+from app.core.halachic_time import get_halachic_service
 from app.core.database import AsyncSessionLocal
 from app.db.models import persist_pinkas_entry
 from app.models.missions import MissionInstance, MissionTemplate
@@ -18,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 def is_shabbat_or_yom_tov(now: datetime) -> bool:
-    """Placeholder halachic calendar check."""
+    """Delegate to the central halachic time service."""
 
-    # TODO: Integrate with real halachic calendar service to detect Shabbat/Yom Tov.
-    return False
+    service = get_halachic_service()
+    return service.is_shabbat_or_yom_tov(now)
 
 
 async def fetch_random_content(

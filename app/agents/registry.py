@@ -1,4 +1,4 @@
-"""Registry containing the core SOD-EMUNA agency agents."""
+"""Registry containing the core SOD-EMUNA agency agents generated from Corporate DNA."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,6 +6,8 @@ from typing import Dict, Iterable
 
 from app.agents.base import BaseAgent
 from app.agents.protocols import AgentRequest, AgentResponse
+from app.agents.registry_data import CORPORATE_DNA
+from app.schemas.dna import DNAEntry, DNARegistry
 
 
 @dataclass
@@ -23,96 +25,77 @@ class PersonaAgent(BaseAgent):
         )
 
 
-AGENTS: Dict[str, PersonaAgent] = {
-    "CEO": PersonaAgent(
-        name="CEO",
-        role="Visionary leader",
-        description="Charts the covenantal mission with bold clarity.",
-        tools=["roadmap", "alignment_checks"],
-        response_style="Authoritative and concise",
-    ),
-    "CTO": PersonaAgent(
-        name="CTO",
-        role="Technology steward",
-        description="Builds resilient, transparent systems that honor the mission.",
-        tools=["architecture", "sre", "open_source_stack"],
-        response_style="Technical with pragmatic optimism",
-    ),
-    "Evangelist": PersonaAgent(
-        name="Evangelist",
-        role="Narrative amplifier",
-        description="Spreads the story with integrity and enthusiasm.",
-        tools=["storytelling", "community", "campaigns"],
-        response_style="Inspirational and energetic",
-    ),
-    "Strategist": PersonaAgent(
-        name="Strategist",
-        role="Plan architect",
-        description="Designs routes that turn mission into measurable wins.",
-        tools=["swot", "kpi_dashboard", "scenario_planning"],
-        response_style="Analytical and decisive",
-    ),
-    "Scholar": PersonaAgent(
-        name="Scholar",
-        role="Source guardian",
-        description="Anchors decisions in primary texts and commentary.",
-        tools=["sefaria", "genizah", "citations"],
-        response_style="Textual and footnoted",
-    ),
-    "Researcher": PersonaAgent(
-        name="Researcher",
-        role="Insight hunter",
-        description="Discovers evidence and patterns to de-risk choices.",
-        tools=["literature_review", "data_scraper", "trend_analysis"],
-        response_style="Empirical and neutral",
-    ),
-    "Coder": PersonaAgent(
-        name="Coder",
-        role="System builder",
-        description="Implements reliable, testable software for the agency.",
-        tools=["ideation", "testing", "automation"],
-        response_style="Direct and code-focused",
-    ),
-    "Editor": PersonaAgent(
-        name="Editor",
-        role="Quality gate",
-        description="Refines language to be clear, accurate, and aligned.",
-        tools=["style_guide", "fact_check", "tone_adjuster"],
-        response_style="Crisp and exacting",
-    ),
-    "Navigator": PersonaAgent(
-        name="Navigator",
-        role="Pathfinder",
-        description="Guides teams through options with grounded advice.",
-        tools=["decision_tree", "risk_register", "retro"],
-        response_style="Steady and directional",
-    ),
-    "CRO": PersonaAgent(
-        name="CRO",
-        role="Rabbinic guardrail",
-        description="Ensures every output respects halachic boundaries.",
-        tools=["halacha_review", "source_verification", "escalation"],
-        response_style="Measured and source-cited",
-    ),
-    "Designer": PersonaAgent(
-        name="Designer",
-        role="Experience shaper",
-        description="Crafts interfaces that are humane, accessible, and purposeful.",
-        tools=["wireframes", "design_system", "a11y_audit"],
-        response_style="Visual and empathetic",
-    ),
-    "Teacher": PersonaAgent(
-        name="Teacher",
-        role="Learning guide",
-        description="Translates complex ideas into actionable understanding.",
-        tools=["curriculum", "examples", "assessment"],
-        response_style="Patient and illustrative",
-    ),
+REQUIRED_CORE_AGENTS: set[str] = {
+    "nasi",
+    "av_beit_din",
+    "chief_executive_officer",
+    "chief_technology_officer",
+    "chief_knowledge_officer",
+    "chief_risk_officer",
+    "strategist",
+    "scholar",
+    "evangelist",
+    "editor",
+    "designer",
+    "researcher",
 }
 
+
+def _validate_corporate_dna() -> Dict[str, DNAEntry]:
+    registry = DNARegistry.model_validate(CORPORATE_DNA).entries
+    missing = REQUIRED_CORE_AGENTS.difference(registry.keys())
+    if missing:
+        raise ValueError(f"Missing required corporate DNA entries: {', '.join(sorted(missing))}")
+    return registry
+
+
+DNA_REGISTRY: Dict[str, DNAEntry] = _validate_corporate_dna()
+
+
+def _response_style_from_entry(entry: DNAEntry) -> str:
+    return f"{entry.archetype} voice"
+
+
+def _build_agent(internal_name: str, dna_entry: DNAEntry) -> PersonaAgent:
+    agent = PersonaAgent(
+        name=dna_entry.display_name,
+        role=dna_entry.role,
+        description=dna_entry.dna_prompt,
+        tools=dna_entry.tools,
+        response_style=_response_style_from_entry(dna_entry),
+        dna={
+            "tribe": dna_entry.tribe,
+            "archetype": dna_entry.archetype,
+            "risk_profile": dna_entry.risk_profile,
+            "ethics_notes": dna_entry.ethics_notes,
+        },
+    )
+    return agent
+
+
+AGENTS: Dict[str, PersonaAgent] = {key: _build_agent(key, entry) for key, entry in DNA_REGISTRY.items()}
 TOTAL_AGENTS: int = len(AGENTS)
 ALL_AGENT_KEYS = list(AGENTS.keys())
+AGENTS_CONFIG = DNA_REGISTRY
 
 
-def list_agents() -> Iterable[BaseAgent]:
-    return AGENTS.values()
+def get_agent(internal_name: str) -> BaseAgent:
+    normalized = internal_name.lower()
+    if normalized not in AGENTS:
+        raise KeyError(f"Agent '{internal_name}' is not registered")
+    return AGENTS[normalized]
+
+
+def list_agents() -> Dict[str, BaseAgent]:
+    return dict(AGENTS)
+
+
+__all__ = [
+    "AGENTS",
+    "AGENTS_CONFIG",
+    "ALL_AGENT_KEYS",
+    "TOTAL_AGENTS",
+    "get_agent",
+    "list_agents",
+    "PersonaAgent",
+]
