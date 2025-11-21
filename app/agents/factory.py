@@ -1,7 +1,8 @@
 from dataclasses import dataclass
+from dataclasses import dataclass
 from typing import Dict, List
 
-from app.agents.registry import AGENTS, TOTAL_AGENTS
+from app.agents.registry import TOTAL_AGENTS, get_agent, list_agents
 
 
 @dataclass
@@ -16,14 +17,11 @@ class AgentProfile:
 class AgentFactory:
     @staticmethod
     def get_agent(key: str):
-        agent = AGENTS.get(key)
-        if not agent:
-            raise KeyError(f"Agent {key} not found")
-        return agent
+        return get_agent(key)
 
     @staticmethod
     def list_agents() -> List:
-        return list(AGENTS.values())
+        return list(list_agents().values())
 
     @staticmethod
     def to_model_payload(agent) -> Dict[str, str]:

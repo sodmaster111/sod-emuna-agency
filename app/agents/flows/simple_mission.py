@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List
 
 from app.agents.protocols import AgentRequest, AgentResponse
-from app.agents.registry import AGENTS
+from app.agents.registry import get_agent
 
 StepHandler = Callable[["FlowContext"], Awaitable["FlowContext"]]
 
@@ -59,19 +59,20 @@ class SimpleMissionGraph:
 
 
 def _log_agent_interaction(agent_name: str, action: str, detail: str | None = None) -> None:
-    agent = AGENTS.get(agent_name)
-    if agent:
-        agent.log_to_pinkas(action, detail=detail)
-
-
-def _get_agent(agent_name: str):
-    if agent_name not in AGENTS:
-        raise ValueError(f"Agent '{agent_name}' is not registered")
-    return AGENTS[agent_name]
+    agent = get_agent(agent_name)
+    agent.log_to_pinkas(
+        action,
+        detail=detail,
+        metadata={
+            "tribe": (agent.dna or {}).get("tribe"),
+            "role": agent.role,
+            "risk_profile": (agent.dna or {}).get("risk_profile"),
+        },
+    )
 
 
 async def _call_agent(agent_name: str, context: FlowContext, payload: Any, stage: str) -> AgentResponse:
-    agent = _get_agent(agent_name)
+    agent = get_agent(agent_name)
     _log_agent_interaction(agent_name, "start", detail=f"stage={stage}")
     response = await agent.run(
         AgentRequest(
@@ -84,17 +85,18 @@ async def _call_agent(agent_name: str, context: FlowContext, payload: Any, stage
         )
     )
     _log_agent_interaction(agent_name, "complete", detail=f"stage={stage}")
-    context.history.append({"stage": stage, "agent": agent_name, "result": response.result})
+    normalized_name = agent_name.lower()
+    context.history.append({"stage": stage, "agent": normalized_name, "result": response.result})
     context.results[stage] = response
     return response
 
 
 async def analyze_request(context: FlowContext) -> FlowContext:
     strategist_response = await _call_agent(
-        "Strategist", context, context.payload, stage="analyze_request/strategist"
+        "strategist", context, context.payload, stage="analyze_request/strategist"
     )
     scholar_response = await _call_agent(
-        "Scholar", context, context.payload, stage="analyze_request/scholar"
+        "scholar", context, context.payload, stage="analyze_request/scholar"
     )
     context.analysis = {
         "strategist": strategist_response.result,
@@ -104,8 +106,12 @@ async def analyze_request(context: FlowContext) -> FlowContext:
 
 
 async def plan_actions(context: FlowContext) -> FlowContext:
-    ceo_response = await _call_agent("CEO", context, context.analysis or context.payload, stage="plan_actions/ceo")
-    cto_response = await _call_agent("CTO", context, context.analysis or context.payload, stage="plan_actions/cto")
+    ceo_response = await _call_agent(
+        "chief_executive_officer", context, context.analysis or context.payload, stage="plan_actions/ceo"
+    )
+    cto_response = await _call_agent(
+        "chief_technology_officer", context, context.analysis or context.payload, stage="plan_actions/cto"
+    )
     context.plan = {
         "ceo": ceo_response.result,
         "cto": cto_response.result,
@@ -133,7 +139,7 @@ async def finalize_message(context: FlowContext) -> FlowContext:
         "execution": context.execution,
     }
     evangelist_response = await _call_agent(
-        "Evangelist", context, evangelist_payload, stage="finalize_message/evangelist"
+        "evangelist", context, evangelist_payload, stage="finalize_message/evangelist"
     )
     editor_payload = {
         "evangelist": evangelist_response.result,
@@ -141,7 +147,7 @@ async def finalize_message(context: FlowContext) -> FlowContext:
         "plan": context.plan,
     }
     editor_response = await _call_agent(
-        "Editor", context, editor_payload, stage="finalize_message/editor"
+        "editor", context, editor_payload, stage="finalize_message/editor"
     )
     context.final_message = str(editor_response.result)
     return context
