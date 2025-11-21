@@ -44,9 +44,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.api.routes import amac  # noqa: E402
 from app.api.v1 import admin, agents, health, logs  # noqa: E402
 
 app.include_router(health.router, tags=["Health"])
 app.include_router(logs.router, prefix="/api/v1", tags=["Logs"])
 app.include_router(agents.router, prefix="/api/v1", tags=["Agents"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
+app.include_router(amac.router)
