@@ -15,29 +15,23 @@ class AgentProfile:
 
 class AgentFactory:
     @staticmethod
-    def get_agent(key: str) -> AgentProfile:
-        agent_data = AGENTS.get(key)
-        if not agent_data:
+    def get_agent(key: str):
+        agent = AGENTS.get(key)
+        if not agent:
             raise KeyError(f"Agent {key} not found")
-        return AgentProfile(
-            key=key,
-            name=agent_data["name"],
-            role=agent_data.get("role", ""),
-            dna_prompt=agent_data["dna_prompt"],
-            tools=agent_data.get("tools", []),
-        )
+        return agent
 
     @staticmethod
-    def list_agents() -> List[AgentProfile]:
-        return [AgentFactory.get_agent(key) for key in AGENTS]
+    def list_agents() -> List:
+        return list(AGENTS.values())
 
     @staticmethod
-    def to_model_payload(agent: AgentProfile) -> Dict[str, str]:
+    def to_model_payload(agent) -> Dict[str, str]:
         return {
             "name": agent.name,
             "role": agent.role,
-            "dna_prompt": agent.dna_prompt,
-            "tools": agent.tools,
+            "dna_prompt": getattr(agent, "description", ""),
+            "tools": list(agent.tools),
         }
 
     @staticmethod
