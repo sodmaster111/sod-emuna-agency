@@ -1,50 +1,34 @@
-from contextlib import asynccontextmanager
+"""FastAPI application entrypoint for core services."""
+from __future__ import annotations
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from fastapi import APIRouter, FastAPI
 
-from app.api.v1 import agents, logs
-from app.core.database import engine
-from app.db.models import Base
+from app.db.session import lifespan
 
+app = FastAPI(title="SOD Agency Core API", version="0.1.0", lifespan=lifespan)
 
-ALLOWED_ORIGINS = [
-    "https://sodmaster.online",
-    "http://sodmaster.online",
-    "http://localhost:3000",
-    "http://212.47.64.39",
-    "http://212.47.64.39:3000",
-]
+router = APIRouter()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.run_sync(Base.metadata.create_all)
-    yield
+@router.get("/health")
+async def health_check() -> dict[str, str]:
+    """Return a simple health indicator."""
+
+    return {"status": "online"}
 
 
-app = FastAPI(
-    title="SOD Autonomous Corporation API",
-    version="1.0.0",
-    lifespan=lifespan,
-)
+@router.get("/logs")
+async def list_logs() -> dict[str, str]:
+    """Placeholder endpoint for logs retrieval."""
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"https?://212\.47\.64\.39(?::\d+)?",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(logs.router, prefix="/api/v1")
-app.include_router(agents.router, prefix="/api/v1")
+    return {"status": "online"}
 
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "agents": 158, "ram": "48GB"}
+@router.post("/command")
+async def execute_command() -> dict[str, str]:
+    """Placeholder endpoint for agent command execution."""
+
+    return {"status": "online"}
+
+
+app.include_router(router)
