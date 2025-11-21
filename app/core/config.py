@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     def telegram_gateway_url(self) -> str:
         return self.TELEGRAM_GATEWAY_URL or "http://telegram-gateway/send-message"
 
+    @property
+    def audit_mode(self) -> bool:
+        return bool(self.AUDIT_MODE)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
