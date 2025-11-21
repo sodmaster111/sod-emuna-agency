@@ -52,6 +52,19 @@ services:
     networks:
       - sod
 
+  telegram-gateway:
+    build:
+      context: .
+    command: python -m telegram_gateway.main
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://api:8000}
+      GATEWAY_REQUEST_TIMEOUT: ${GATEWAY_REQUEST_TIMEOUT:-15}
+    depends_on:
+      - api
+    networks:
+      - sod
+
 networks:
   sod:
     driver: bridge
