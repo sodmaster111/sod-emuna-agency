@@ -52,6 +52,11 @@ async def send_template(payload: SendTemplateRequest):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@app.get("/api/status")
+async def status():
+    return {"status": "ok", "service": "wa-gateway"}
+
+
 # Docker deployment hint:
 # Service name: wa-gateway
 # Expose port: 9000

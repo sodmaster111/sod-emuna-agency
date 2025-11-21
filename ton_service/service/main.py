@@ -126,6 +126,11 @@ async def health() -> dict:
     return {"status": "ok", "network": NETWORK, "address": wallet_address}
 
 
+@app.get("/api/status")
+async def status() -> dict:
+    return {"status": "ok", "service": "ton-service"}
+
+
 @app.get("/balance", response_model=BalanceResponse, dependencies=[Depends(require_token)])
 async def get_balance() -> BalanceResponse:
     result = _toncenter_get("getAddressBalance", {"address": wallet_address})
