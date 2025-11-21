@@ -32,8 +32,12 @@ class SanhedrinCouncil:
             ]
         }
         self.agents: Dict[str, AssistantAgent] = {
-            name: AssistantAgent(name=name, system_message=cfg["system_message"], llm_config=self.llm_config)
-            for name, cfg in AGENTS_CONFIG.items()
+            internal_name: AssistantAgent(
+                name=cfg.display_name,
+                system_message=cfg.dna_prompt,
+                llm_config=self.llm_config,
+            )
+            for internal_name, cfg in AGENTS_CONFIG.items()
         }
         self.group_chat = GroupChat(
             agents=list(self.agents.values()),

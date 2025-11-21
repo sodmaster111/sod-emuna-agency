@@ -13,7 +13,7 @@ from enum import Enum
 from typing import Any, Dict
 
 from app.agents.flows.simple_mission import FlowContext, run_simple_mission
-from app.agents.registry import AGENTS
+from app.agents.registry import get_agent
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +35,13 @@ def select_primary_agent(mission_type: MissionType, payload: Dict[str, Any] | No
     """Route the mission to the most appropriate primary agent."""
 
     if mission_type is MissionType.PRAYER_DISTRIBUTION:
-        return "Evangelist"
+        return "evangelist"
     if mission_type is MissionType.RESEARCH:
-        return "Researcher"
+        return "researcher"
     if mission_type is MissionType.CONTENT_CREATION:
         if payload and payload.get("requires_visuals"):
-            return "Designer"
-        return "Editor"
+            return "designer"
+        return "editor"
     raise ValueError(f"Unsupported mission type: {mission_type}")
 
 
@@ -49,7 +49,12 @@ async def run_mission(task: MissionTask) -> Dict[str, Any]:
     """Execute a mission by constructing and running the mission graph."""
 
     primary_agent = select_primary_agent(task.mission_type, task.payload)
-    logger.info("Routing mission", extra={"mission_type": task.mission_type.value, "agent": primary_agent})
+    agent = get_agent(primary_agent)
+    dna_meta = agent.dna or {}
+    logger.info(
+        "Routing mission",
+        extra={"mission_type": task.mission_type.value, "agent": primary_agent, "dna": dna_meta},
+    )
 
     context = FlowContext(
         mission_type=task.mission_type.value,
@@ -74,9 +79,8 @@ async def run_mission(task: MissionTask) -> Dict[str, Any]:
         }
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.exception("Mission execution failed", exc_info=exc)
-        agent = AGENTS.get(primary_agent)
         if agent:
-            agent.log_to_pinkas("error", detail=str(exc))
+            agent.log_to_pinkas("error", detail=str(exc), metadata=dna_meta)
         return {"status": "failed", "summary": str(exc), "data": {}}
 
 
