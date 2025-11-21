@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = None
     ENVIRONMENT: Optional[str] = None
     TELEGRAM_GATEWAY_URL: Optional[str] = None
-    AUDIT_MODE: bool = False
+    SECRET_KEY: str = "change-me"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    AUTH_COOKIE_NAME: str = "auth_token"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
