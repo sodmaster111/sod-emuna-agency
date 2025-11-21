@@ -38,4 +38,5 @@ class ContentItemRead(ContentItemBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    indexed_at: datetime | None = None
     category: ContentCategoryRead
