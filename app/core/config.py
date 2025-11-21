@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from functools import lru_cache
 
 from pydantic import Field
@@ -39,6 +37,29 @@ class Settings(BaseSettings):
         env="MISSION_GOAL",
         description="Primary mission objective",
     )
+    ton_wallet_address: str = Field(
+        default="",
+        description="TON wallet address used for treasury status checks",
+        env="TON_WALLET_ADDRESS",
+    )
+
+    langfuse_secret_key: str = Field(
+        default="",
+        description="Secret key for authenticating with Langfuse",
+        env="LANGFUSE_SECRET_KEY",
+    )
+    langfuse_public_key: str = Field(
+        default="",
+        description="Public key for authenticating with Langfuse",
+        env="LANGFUSE_PUBLIC_KEY",
+    )
+    langfuse_host: str = Field(
+        default="https://trace.sodmaster.online",
+        description="Base URL for Langfuse tracing backend",
+        env="LANGFUSE_HOST",
+    )
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
 
 
 @lru_cache
@@ -46,6 +67,5 @@ def get_settings() -> Settings:
     """Return a cached settings instance."""
 
     return Settings()
-
 
 settings = Settings()

@@ -7,6 +7,8 @@ from uuid import uuid4
 
 from pytoniq import Address, LiteClient, WalletV4R2
 
+from app.core.tracing import end_span, start_span
+
 DEFAULT_LITE_ENDPOINT = "https://toncenter.com/api/v2/jsonRPC"
 
 
@@ -27,10 +29,13 @@ def check_balance(address: str, endpoint: str | None = None) -> Decimal:
         Optional TON Center RPC endpoint.
     """
 
+    span = start_span("finance.check_balance", input={"address": address, "endpoint": endpoint})
     client = _client(endpoint)
     account = client.get_account(Address(address))
     # TON balances are stored in nanocoins (1e9 = 1 TON)
-    return Decimal(account.balance) / Decimal(1e9)
+    result = Decimal(account.balance) / Decimal(1e9)
+    end_span(span, output={"balance": str(result)})
+    return result
 
 
 def send_ton(
@@ -56,6 +61,10 @@ def send_ton(
         Optional dictionary payload to attach to the transfer.
     """
 
+    span = start_span(
+        "finance.send_ton",
+        input={"destination": destination, "amount": str(amount), "endpoint": endpoint},
+    )
     client = _client(endpoint)
     wallet = WalletV4R2.from_mnemonic(mnemonic, client=client)
     transfer = wallet.create_transfer_message(
@@ -64,7 +73,9 @@ def send_ton(
         payload=payload,
     )
     result = wallet.send_message(transfer)
-    return str(result)
+    output = str(result)
+    end_span(span, output={"transfer": output})
+    return output
 
 
 def create_nft_invoice(
@@ -82,8 +93,12 @@ def create_nft_invoice(
     the live payment link/transaction hash.
     """
 
+    span = start_span(
+        "finance.create_nft_invoice",
+        input={"buyer": buyer_address, "amount": str(amount)},
+    )
     invoice_id = f"nft-invoice-{uuid4()}"
-    return {
+    payload = {
         "invoice_id": invoice_id,
         "buyer": buyer_address,
         "amount_ton": str(amount),
@@ -92,6 +107,8 @@ def create_nft_invoice(
         "status": "pending-signature",
         "note": "Tact deployment pending; this payload is off-chain only.",
     }
+    end_span(span, output=payload)
+    return payload
 
 
 def mint_soulbound_nft(
@@ -105,5 +122,8 @@ def mint_soulbound_nft(
     on-chain Tact contract once deployment details are finalized.
     """
 
+    span = start_span("finance.mint_soulbound_nft", input={"owner": owner_address})
     _ = (owner_address, metadata, mnemonic)
-    return "soulbound NFT minting is not yet implemented"
+    message = "soulbound NFT minting is not yet implemented"
+    end_span(span, output={"status": message})
+    return message
