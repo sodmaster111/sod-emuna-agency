@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     DATABASE_URL: Optional[str] = None
     REDIS_URL: Optional[str] = None
     ENVIRONMENT: Optional[str] = None
+    TELEGRAM_GATEWAY_URL: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -40,6 +41,10 @@ class Settings(BaseSettings):
             missing_vars.append("ENVIRONMENT")
             object.__setattr__(self, "ENVIRONMENT", DEFAULT_ENVIRONMENT)
 
+        if not self.TELEGRAM_GATEWAY_URL:
+            missing_vars.append("TELEGRAM_GATEWAY_URL")
+            object.__setattr__(self, "TELEGRAM_GATEWAY_URL", "http://telegram-gateway/send-message")
+
         if missing_vars:
             logger.warning(
                 "Missing environment variables for settings: %s. Using default values.",
@@ -57,6 +62,10 @@ class Settings(BaseSettings):
     @property
     def environment(self) -> str:
         return self.ENVIRONMENT or DEFAULT_ENVIRONMENT
+
+    @property
+    def telegram_gateway_url(self) -> str:
+        return self.TELEGRAM_GATEWAY_URL or "http://telegram-gateway/send-message"
 
 
 @lru_cache(maxsize=1)
