@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from app.core.tracing import end_span, start_span
+
 async_playwright = None
 PlaywrightTimeoutError = Exception
 if importlib.util.find_spec("playwright"):
@@ -28,33 +30,46 @@ class WebAgent:
     async def visit_url(self, url: str) -> Dict[str, Any]:
         """Visit a URL and return metadata or automation results."""
 
+        span = start_span("web_agent.visit_url", input={"url": url})
         if self.agent:
             result = await self.agent.run(
                 f"Open {url} and provide a concise summary of the page along with key calls to action."
             )
-            return {"driver": "browser_use", "result": result, "target": url}
+            payload = {"driver": "browser_use", "result": result, "target": url}
+            end_span(span, output=payload)
+            return payload
 
         if async_playwright:
-            return await self._playwright_snapshot(url)
+            snapshot = await self._playwright_snapshot(url)
+            end_span(span, output=snapshot)
+            return snapshot
 
-        return await asyncio.to_thread(self._requests_fetch, url)
+        fallback = await asyncio.to_thread(self._requests_fetch, url)
+        end_span(span, output=fallback)
+        return fallback
 
     async def execute_task(self, goal: str, start_url: Optional[str] = None) -> Dict[str, Any]:
         """Execute an autonomous browsing goal, starting at an optional URL."""
 
+        span = start_span("web_agent.execute_task", input={"goal": goal, "start_url": start_url})
         if self.agent:
             prompt = goal
             if start_url:
                 prompt = f"Start at {start_url}. {goal}"
             result = await self.agent.run(prompt)
-            return {"driver": "browser_use", "result": result}
+            payload = {"driver": "browser_use", "result": result}
+            end_span(span, output=payload)
+            return payload
 
         if start_url and async_playwright:
             snapshot = await self._playwright_snapshot(start_url)
             snapshot["result"] = "browser_use not installed; provided snapshot only"
+            end_span(span, output=snapshot)
             return snapshot
 
-        return {"driver": "requests", "result": goal}
+        payload = {"driver": "requests", "result": goal}
+        end_span(span, output=payload)
+        return payload
 
     async def post_comment(
         self,
@@ -64,18 +79,29 @@ class WebAgent:
     ) -> Dict[str, Any]:
         """Navigate to a URL and attempt to post a comment suitable for social feeds."""
 
+        span = start_span("web_agent.post_comment", input={"url": url, "comment": comment})
         if self.agent:
             instruction = (
                 f"Navigate to {url}. Find the primary comment box and post the following comment verbatim: "
                 f'"{comment}". Confirm posting and capture any response or confirmation text.'
             )
             result = await self.agent.run(instruction)
-            return {"driver": "browser_use", "result": result, "comment": comment, "target": url}
+            payload = {"driver": "browser_use", "result": result, "comment": comment, "target": url}
+            end_span(span, output=payload)
+            return payload
 
         if async_playwright:
-            return await self._playwright_post_comment(url, comment, field_selector)
+            result = await self._playwright_post_comment(url, comment, field_selector)
+            end_span(span, output=result)
+            return result
 
-        return {"driver": "requests", "status": "unavailable", "reason": "browser automation not installed"}
+        payload = {
+            "driver": "requests",
+            "status": "unavailable",
+            "reason": "browser automation not installed",
+        }
+        end_span(span, output=payload)
+        return payload
 
     def _requests_fetch(self, url: str) -> Dict[str, Any]:
         response = requests.get(url, timeout=10)

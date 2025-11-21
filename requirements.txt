@@ -22,3 +22,4 @@ tonutils
 beautifulsoup4
 lxml
 langgraph
+langfuse

@@ -9,6 +9,7 @@ from langgraph.prebuilt import create_react_agent
 
 from app.agents.registry import get_system_prompt
 from app.core.config import get_settings
+from app.core.tracing import get_callback_handler, start_trace
 
 SettingsDict = Dict[str, Any]
 
@@ -33,12 +34,23 @@ def build_langgraph_agent(role_name: str, tools: Iterable[Any] | None = None) ->
 
     settings = get_settings()
     system_prompt = get_system_prompt(role_name)
-    llm = ChatLiteLLM(
-        model=settings.ollama_model,
-        api_base=settings.ollama_base_url,
-        temperature=settings.temperature,
-        max_tokens=settings.max_tokens,
+    handler = get_callback_handler()
+    llm_kwargs: Dict[str, Any] = {
+        "model": settings.ollama_model,
+        "api_base": settings.ollama_base_url,
+        "temperature": settings.temperature,
+        "max_tokens": settings.max_tokens,
+    }
+    if handler:
+        llm_kwargs["callbacks"] = [handler]
+
+    start_trace(
+        name=f"{role_name}-root",
+        input=system_prompt,
+        metadata={"agent": role_name, "framework": "langgraph"},
     )
+
+    llm = ChatLiteLLM(**llm_kwargs)
     return create_react_agent(
         llm,
         tools=list(tools or []),
@@ -50,10 +62,21 @@ def build_autogen_agent(role_name: str) -> AssistantAgent:
     """Create an AutoGen AssistantAgent with the correct system prompt."""
 
     system_prompt = get_system_prompt(role_name)
+    handler = get_callback_handler()
+    llm_config = _build_llm_config()
+    if handler:
+        llm_config["callbacks"] = [handler]
+
+    start_trace(
+        name=f"{role_name}-root",
+        input=system_prompt,
+        metadata={"agent": role_name, "framework": "autogen"},
+    )
+
     return AssistantAgent(
         name=role_name,
         system_message=system_prompt,
-        llm_config=_build_llm_config(),
+        llm_config=llm_config,
     )
 
 
