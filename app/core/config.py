@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = None
     ENVIRONMENT: Optional[str] = None
     TELEGRAM_GATEWAY_URL: Optional[str] = None
+    AUDIT_MODE: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -66,6 +67,10 @@ class Settings(BaseSettings):
     @property
     def telegram_gateway_url(self) -> str:
         return self.TELEGRAM_GATEWAY_URL or "http://telegram-gateway/send-message"
+
+    @property
+    def audit_mode(self) -> bool:
+        return bool(self.AUDIT_MODE)
 
 
 @lru_cache(maxsize=1)
