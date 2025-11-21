@@ -1,0 +1,25 @@
+# Prometheus configuration for sod-emuna-agency
+# With 48GB RAM available, 30d retention is reasonable; tune PROMETHEUS_RETENTION env var to 15-30d as needed.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "sod-backend"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - backend:8000
+
+  # Uncomment when Celery metrics are exposed on a port or via a sidecar
+  # - job_name: "celery-worker"
+  #   static_configs:
+  #     - targets:
+  #         - worker:PORT
+
+  # Optional: Ollama metrics endpoint (if enabled)
+  # - job_name: "ollama"
+  #   static_configs:
+  #     - targets:
+  #         - ollama:11434
+
+  # Future jobs: telegram gateway, vector DB, etc.
