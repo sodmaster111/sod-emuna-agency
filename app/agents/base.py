@@ -19,12 +19,15 @@ class BaseAgent(ABC):
     role: str
     description: str
     tools: Iterable[str] = field(default_factory=list)
+    dna: dict | None = None
 
     @abstractmethod
     async def run(self, agent_input: AgentRequest) -> AgentResponse:
         """Execute the agent given the provided input."""
 
-    def log_to_pinkas(self, action: str, detail: str | None = None) -> None:
+    def log_to_pinkas(
+        self, action: str, detail: str | None = None, metadata: dict | None = None
+    ) -> None:
         """Persist an action to the Pinkas (mission ledger).
 
         This implementation currently forwards entries to the application logger;
@@ -34,4 +37,4 @@ class BaseAgent(ABC):
         message = f"[Pinkas] agent={self.name} action={action}"
         if detail:
             message = f"{message} detail={detail}"
-        logger.info(message)
+        logger.info(message, extra={"dna": metadata or self.dna or {}})

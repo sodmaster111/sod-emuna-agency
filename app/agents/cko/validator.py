@@ -45,7 +45,8 @@ def validate_action(plan: str) -> Dict[str, Any]:
     """
 
     sources = consult_sefaria(plan)
-    system_prompt = AGENTS_CONFIG.get("CKO", {}).get("system_message", "")
+    cko_entry = AGENTS_CONFIG.get("chief_knowledge_officer")
+    system_prompt = cko_entry.dna_prompt if cko_entry else ""
     lower_plan = plan.lower()
 
     if any(keyword in lower_plan for keyword in AUTO_VETO_KEYWORDS):
