@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, List, Optional
+from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -16,7 +17,7 @@ class ContentCategory(Base):
 
     __tablename__ = "content_categories"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     name_he: Mapped[str] = mapped_column(String(255), nullable=False)
     name_en: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -32,9 +33,9 @@ class ContentItem(Base):
 
     __tablename__ = "content_items"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    category_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("content_categories.id", ondelete="CASCADE"), nullable=False
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    category_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("content_categories.id", ondelete="CASCADE"), nullable=False
     )
     title_he: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     title_en: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -52,3 +53,8 @@ class ContentItem(Base):
     )
 
     category: Mapped[ContentCategory] = relationship("ContentCategory", back_populates="items")
+
+    __table_args__ = (
+        Index("idx_content_category", category_id),
+        Index("idx_content_tags", tags),
+    )
