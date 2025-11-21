@@ -1,7 +1,7 @@
 """Models for storing structured Torah content."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
@@ -45,6 +45,9 @@ class ContentItem(Base):
     tags: Mapped[list[str]] = mapped_column(JSONB, default=list)
     metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    indexed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
