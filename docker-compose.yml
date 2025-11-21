@@ -86,6 +86,50 @@ services:
       retries: 5
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.7
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - loki_data:/loki
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.9.7
+    command: ["--config.file=/etc/promtail/config.yml"]
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    environment:
+      # Set GF_SECURITY_ADMIN_PASSWORD to provision a known admin password on first start.
+      # Consider securing Grafana behind a TLS-enabled reverse proxy (e.g., Traefik/nginx) with basic auth.
+      GF_SERVER_HTTP_PORT: 3000
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
   telegram-gateway:
     build:
       context: .
@@ -98,6 +142,13 @@ services:
       - api
     networks:
       - sod
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  loki_data:
+  grafana_data:
 
 networks:
   sod:

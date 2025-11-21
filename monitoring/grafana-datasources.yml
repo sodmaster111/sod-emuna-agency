@@ -1,0 +1,14 @@
+# Grafana datasource provisioning
+# Access Grafana at http://localhost:3001 (or server_ip:3001). On first run, set GF_SECURITY_ADMIN_PASSWORD env var or log in with admin/admin and change the password immediately.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
