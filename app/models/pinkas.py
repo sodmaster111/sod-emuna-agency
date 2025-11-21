@@ -1,32 +1,35 @@
-"""Pinkas audit log model."""
+"""Pinkas log model for recording agent activity and commands."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import Any, Dict
 
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.sql import func
 
-from app.db.session import Base
+from app.core.database import Base
 
 
 class Pinkas(Base):
-    """Persistent audit record for agent actions."""
+    """Pinkas log entries for agent operations and system actions."""
 
     __tablename__ = "pinkas"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        default=lambda: datetime.now(timezone.utc),
-    )
-    agent = Column(String, nullable=False, index=True)
-    action = Column(String, nullable=False)
-    payload = Column(JSONB)
-    status = Column(String, nullable=False, index=True)
-    meta = Column(JSONB)
+    agent = Column(String, index=True, nullable=False)
+    thought = Column(Text, nullable=True)
+    action = Column(String, nullable=True)
+    payload = Column(JSONB, default=dict)
+    status = Column(String, default="ok", index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
 
-    def __repr__(self) -> str:  # pragma: no cover - for debugging
-        return f"<Pinkas id={self.id} agent={self.agent} status={self.status}>"
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "agent": self.agent,
+            "thought": self.thought,
+            "action": self.action,
+            "payload": self.payload or {},
+            "status": self.status,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }

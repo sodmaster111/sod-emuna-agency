@@ -1,10 +1,12 @@
 from datetime import datetime
+import asyncio
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from app.core.database import Base
+from app.core.database import AsyncSessionLocal, Base
+from app.models.pinkas import Pinkas
 
 
 class Agent(Base):
@@ -59,3 +61,51 @@ class AgentLog(Base):
             "status": self.status,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
+
+
+async def _persist_pinkas_entry_async(
+    *,
+    agent_name: str,
+    thought: str | None = None,
+    action: str | None = None,
+    payload: dict | None = None,
+    status: str | None = None,
+) -> None:
+    async with AsyncSessionLocal() as session:
+        entry = Pinkas(
+            agent=agent_name,
+            thought=thought,
+            action=action,
+            payload=payload or {},
+            status=status or "ok",
+        )
+        session.add(entry)
+        await session.commit()
+
+
+def persist_pinkas_entry(
+    *,
+    agent_name: str,
+    thought: str | None = None,
+    action: str | None = None,
+    payload: dict | None = None,
+    status: str | None = None,
+) -> None:
+    """Persist a Pinkas log entry, handling sync and async contexts."""
+
+    async def _runner() -> None:
+        await _persist_pinkas_entry_async(
+            agent_name=agent_name,
+            thought=thought,
+            action=action,
+            payload=payload,
+            status=status,
+        )
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(_runner())
+        return
+
+    loop.create_task(_runner())
