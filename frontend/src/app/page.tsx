@@ -4,6 +4,8 @@
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Loader2, Play, Radio, WifiOff } from "lucide-react";
 
+import { DailyWidget } from "@/app/components/ritual/DailyWidget";
+
 import api from "@/lib/api";
 
 const HEALTH_POLL_INTERVAL = 2000;
@@ -162,6 +164,10 @@ export default function CommandCenterPage() {
             dispatch mission-critical directives with confidence.
           </p>
         </div>
+
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/60 p-4 shadow-lg shadow-emerald-500/10">
+          <DailyWidget />
+        </section>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
