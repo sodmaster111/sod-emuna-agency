@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SOD Autonomous Corporation | Command Center",
-  description: "Offline-ready dashboard to direct the SOD Python backend.",
+  title: "Sod Emuna Agency",
+  description: "Operational intelligence and coordination for the autonomous council.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-slate-950 text-slate-50 antialiased">{children}</body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
