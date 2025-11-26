@@ -1,153 +1,68 @@
-import { ArrowRight, Radio, ShieldCheck, Sparkles } from "lucide-react";
+import type { Metadata } from "next";
 
-import { Badge } from "@/app/components/ui/Badge";
-import { Container } from "@/app/components/ui/Container";
-import { Section } from "@/app/components/ui/Section";
-import { Button } from "@/app/ui/button";
+import { HowItWorks } from "@/app/components/public/HowItWorks";
+import { DailyWidget } from "@/app/components/public/DailyWidget";
+import { Container, Section } from "@/app/components/public/layout";
+import { getDictionary } from "@/app/dictionaries";
 
-const features = [
-  {
-    title: "Operational visibility",
-    description: "Live signals from every node in the council so you can brief leadership with confidence.",
-    icon: Radio,
-  },
-  {
-    title: "Decision support",
-    description: "Structured briefs, Pinkas logs, and curated intelligence for the Nasi and Gabayim.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Human + machine",
-    description: "Blend autonomous agents with human oversight to keep missions aligned with the halachic guardrails.",
-    icon: Sparkles,
-  },
-];
-
-const highlights = [
-  {
-    label: "שבת",
-    value: "Shabbat-ready failsafes across the network.",
-  },
-  {
-    label: "חדש",
-    value: "Fresh mission templates for crisis response and coordination.",
-  },
-  {
-    label: "Soon",
-    value: "Dark mode palette to mirror the ops dashboard.",
-  },
-];
+export const metadata: Metadata = {
+  title: "SOD | How it works",
+  description: "סיפור פשוט על הסוכנים, הקהילה והאוצר בטון שמניעים את SOD.",
+};
 
 export default function PublicHomePage() {
+  const dictionary = getDictionary("he");
+
   return (
-    <main className="min-h-screen bg-sod-bg text-sod-text">
-      <Section className="bg-white/60 pb-16 pt-20">
-        <Container className="grid items-center gap-12 lg:grid-cols-[1.15fr_1fr]">
+    <main className="bg-slate-950 text-slate-50">
+      <Section className="bg-gradient-to-b from-slate-900/70 via-slate-950 to-slate-950">
+        <Container className="grid gap-8 lg:grid-cols-[1.2fr,0.8fr] lg:items-center">
           <div className="space-y-6">
-            <Badge variant="default">Sod Emuna Agency</Badge>
+            <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">Story of the Day</p>
+            <h1 className="text-4xl font-bold leading-tight text-white sm:text-5xl">
+              חיבור בין בינה, קהילה ואוצר מבוזר
+            </h1>
+            <p className="max-w-2xl text-lg leading-relaxed text-slate-200">
+              הסיפור של SOD פשוט: סוכני AMAC מקשיבים, הקהילה מחוברת בערוצים, והאוצר בטון מממן משימות ותומך בתורמים עם
+              קמעות ותגמולים.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 shadow-inner shadow-black/30">
+                <p className="text-sm uppercase tracking-[0.2em] text-emerald-200">Agents</p>
+                <p className="text-base text-slate-100">
+                  החלטות חכמות, ביצוע מהיר ורגישות קהילתית בכל פעולה.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 shadow-inner shadow-black/30">
+                <p className="text-sm uppercase tracking-[0.2em] text-emerald-200">TON Treasury</p>
+                <p className="text-base text-slate-100">זרימת תרומות ליעדים ברורים עם שקיפות והוקרה לתומכים.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-emerald-500/10">
             <div className="space-y-3">
-              <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-                A unified presence for the autonomous council
-              </h1>
-              <p className="max-w-2xl text-lg leading-relaxed text-slate-700">
-                Operate with clarity. Coordinate the Sanhedrin, keep stakeholders informed, and deliver reliable updates for
-                every mission cycle.
+              <p className="text-xs uppercase tracking-[0.25em] text-emerald-300">AMAC Pulse</p>
+              <h2 className="text-2xl font-semibold text-white">זרם פעולות קבוע</h2>
+              <p className="text-sm leading-relaxed text-slate-200">
+                שגרות, תצפיות ודגשים מגיעים בזמן אמת. כל שלב נבנה כדי לשמור על שקט, ביטחון ותנועה קדימה.
               </p>
             </div>
-
-            <div className="flex flex-wrap gap-4">
-              <Button className="bg-sod-primary text-white shadow-lg shadow-sod-primary/20 hover:-translate-y-0.5 hover:shadow-xl">
-                Begin a mission
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="secondary"
-                className="border-sod-primary text-sod-primary hover:border-sod-accent hover:text-sod-text"
-                asChild
-                href="/login"
-              >
-                <a className="inline-flex items-center gap-2">Enter dashboard</a>
-              </Button>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              {highlights.map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm shadow-slate-100"
-                >
-                  <Badge className="mb-3 text-xs" variant="outline">
-                    {item.label}
-                  </Badge>
-                  <p className="text-sm text-slate-700">{item.value}</p>
+            <div className="mt-4 space-y-3 divide-y divide-white/5">
+              {["הפעלה יומית של סוכנים", "שידורי קהילה", "דוחות אוצר בטון"].map((item) => (
+                <div key={item} className="flex items-center justify-between pt-3 first:pt-0">
+                  <p className="text-sm text-slate-100">{item}</p>
+                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200">פעיל</span>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-sod-primary/10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-sod-primary">Command status</p>
-                <p className="text-lg font-semibold text-sod-text">Mission control is online</p>
-              </div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-sod-primarySoft px-3 py-1 text-xs font-semibold text-sod-primary">
-                <span className="h-2 w-2 rounded-full bg-sod-primary" />
-                Live
-              </span>
-            </div>
-            <div className="mt-6 space-y-3 text-sm text-slate-700">
-              <p>
-                Real-time telemetry feeds update every few seconds, ready to funnel into the operations dashboard for deeper
-                action.
-              </p>
-              <p>
-                Use the dashboard to dispatch directives, watch Pinkas updates, and ensure every agent stays aligned with the
-                mission brief.
-              </p>
-            </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl bg-sod-primarySoft p-4 text-sod-primary">
-                <p className="text-xs uppercase tracking-wide">Uptime</p>
-                <p className="text-2xl font-semibold">99.9%</p>
-                <p className="text-xs text-sod-text/70">Automated health probes</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 p-4 text-sod-text">
-                <p className="text-xs uppercase tracking-wide">Pinkas</p>
-                <p className="text-2xl font-semibold">Live feed</p>
-                <p className="text-xs text-sod-text/70">Streaming status lines</p>
-              </div>
-            </div>
-          </div>
         </Container>
       </Section>
 
-      <Section>
-        <Container className="space-y-8">
-          <div className="space-y-3 text-center">
-            <Badge variant="outline" className="mx-auto w-fit">Agency Highlights</Badge>
-            <h2 className="text-3xl font-semibold sm:text-4xl">Built for clarity and trust</h2>
-            <p className="text-base text-slate-700 sm:text-lg">
-              Bring the same discipline from the operations dashboard to the public-facing briefings and updates.
-            </p>
-          </div>
+      <DailyWidget />
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-sod-primarySoft text-sod-primary">
-                  <feature.icon className="h-5 w-5" />
-                </span>
-                <h3 className="text-xl font-semibold">{feature.title}</h3>
-                <p className="text-sm leading-relaxed text-slate-700">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </Container>
-      </Section>
+      <HowItWorks content={dictionary.home} />
     </main>
   );
 }
