@@ -121,3 +121,19 @@ async def get_user_statement(
         "total_out": float(total_out),
         "net": float(total_in - total_out),
     }
+
+
+async def get_departments_for_asset(
+    session: AsyncSession,
+    *,
+    asset: str = "TON",
+) -> list[str]:
+    stmt = (
+        select(LedgerEntry.department)
+        .where(and_(LedgerEntry.asset == asset, LedgerEntry.department.is_not(None)))
+        .distinct()
+        .order_by(LedgerEntry.department)
+    )
+
+    result = await session.execute(stmt)
+    return [row[0] for row in result.fetchall() if row[0] is not None]
