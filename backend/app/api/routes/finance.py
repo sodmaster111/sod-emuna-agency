@@ -1,13 +1,20 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services import financial_ledger
+from app.core.database import get_db
+from app.services.financial_ledger import (
+    get_departments_for_asset,
+    get_summary,
+    get_user_statement,
+)
 
+# TODO: Protect all /finance/* routes with admin-only auth (JWT / RBAC).
+# For now, they are assumed to be accessible only from Admin UI behind gateway.
 router = APIRouter(prefix="/finance", tags=["Finance"])
-# TODO: protect with admin RBAC / JWT role check.
 
 
 class FinanceSummaryRequest(BaseModel):
@@ -30,8 +37,8 @@ class UserStatementEntry(BaseModel):
     direction: str
     asset: str
     amount: float
-    department: str | None
-    onchain_tx_hash: str | None
+    department: str | None = None
+    onchain_tx_hash: str | None = None
 
 
 class UserStatementResponse(BaseModel):
@@ -55,68 +62,51 @@ class DepartmentSummaryResponse(BaseModel):
     departments: list[DepartmentSummaryItem]
 
 
-def _resolve_entry_value(entry, field: str):
-    if hasattr(entry, field):
-        return getattr(entry, field)
-    if isinstance(entry, dict):
-        return entry.get(field)
-    return None
-
-
-def _extract_amount(entry) -> float:
-    amount = _resolve_entry_value(entry, "amount")
-    try:
-        return float(amount) if amount is not None else 0.0
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid amount for entry: {amount}") from exc
-
-
 @router.post("/summary", response_model=FinanceSummaryResponse)
-async def get_finance_summary(payload: FinanceSummaryRequest) -> FinanceSummaryResponse:
-    summary = financial_ledger.get_summary(
+async def finance_summary(
+    payload: FinanceSummaryRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Aggregate summary for all ledger entries matching filters:
+    asset, optional date range, optional department.
+    """
+    stats = await get_summary(
+        db,
         asset=payload.asset,
         from_date=payload.from_date,
         to_date=payload.to_date,
         department=payload.department,
     )
-
-    total_in = float(summary.get("total_in", 0))
-    total_out = float(summary.get("total_out", 0))
-
     return FinanceSummaryResponse(
-        asset=summary.get("asset", payload.asset),
-        total_in=total_in,
-        total_out=total_out,
-        net=summary.get("net", total_in - total_out),
+        asset=payload.asset,
+        total_in=stats.get("total_in", 0.0),
+        total_out=stats.get("total_out", 0.0),
+        net=stats.get("net", 0.0),
     )
 
 
 @router.get("/user/{user_id}/statement", response_model=UserStatementResponse)
-async def get_user_statement(user_id: UUID, asset: str = Query(default="TON")) -> UserStatementResponse:
-    ledger_entries = financial_ledger.get_user_statement(user_id=user_id, asset=asset)
-
-    entries: list[UserStatementEntry] = []
-    total_in = 0.0
-    total_out = 0.0
-
-    for entry in ledger_entries:
-        direction = _resolve_entry_value(entry, "direction") or ""
-        amount = _extract_amount(entry)
-
-        if direction.lower() == "in":
-            total_in += amount
-        elif direction.lower() == "out":
-            total_out += amount
-
+async def user_statement(
+    user_id: UUID,
+    asset: str = "TON",
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Detailed statement for a given user & asset.
+    """
+    data = await get_user_statement(db, user_id=user_id, asset=asset)
+    entries = []
+    for entry in data.get("entries", []):
         entries.append(
             UserStatementEntry(
-                timestamp=_resolve_entry_value(entry, "timestamp"),
-                source=_resolve_entry_value(entry, "source"),
-                direction=direction,
-                asset=_resolve_entry_value(entry, "asset") or asset,
-                amount=amount,
-                department=_resolve_entry_value(entry, "department"),
-                onchain_tx_hash=_resolve_entry_value(entry, "onchain_tx_hash"),
+                timestamp=entry.timestamp,
+                source=entry.source,
+                direction=entry.direction,
+                asset=entry.asset,
+                amount=entry.amount,
+                department=getattr(entry, "department", None),
+                onchain_tx_hash=getattr(entry, "onchain_tx_hash", None),
             )
         )
 
@@ -124,38 +114,39 @@ async def get_user_statement(user_id: UUID, asset: str = Query(default="TON")) -
         user_id=user_id,
         asset=asset,
         entries=entries,
-        total_in=total_in,
-        total_out=total_out,
-        net=total_in - total_out,
+        total_in=data.get("total_in", 0.0),
+        total_out=data.get("total_out", 0.0),
+        net=data.get("net", 0.0),
     )
 
 
 @router.get("/departments/summary", response_model=DepartmentSummaryResponse)
-async def get_department_summary(
-    asset: str = Query(default="TON"),
-    from_date: date | None = Query(default=None),
-    to_date: date | None = Query(default=None),
-) -> DepartmentSummaryResponse:
-    departments = financial_ledger.get_departments(
-        asset=asset, from_date=from_date, to_date=to_date
-    )
-
-    department_items: list[DepartmentSummaryItem] = []
-
-    for department in departments:
-        summary = financial_ledger.get_summary(
-            asset=asset, from_date=from_date, to_date=to_date, department=department
+async def departments_summary(
+    asset: str = "TON",
+    from_date: date | None = None,
+    to_date: date | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Summary per department for a given asset and optional date range.
+    """
+    departments = await get_departments_for_asset(db, asset=asset)
+    items: list[DepartmentSummaryItem] = []
+    for dept in departments:
+        stats = await get_summary(
+            db,
+            asset=asset,
+            from_date=from_date,
+            to_date=to_date,
+            department=dept,
         )
-        total_in = float(summary.get("total_in", 0))
-        total_out = float(summary.get("total_out", 0))
-
-        department_items.append(
+        items.append(
             DepartmentSummaryItem(
-                department=department,
-                total_in=total_in,
-                total_out=total_out,
-                net=summary.get("net", total_in - total_out),
+                department=dept,
+                total_in=stats.get("total_in", 0.0),
+                total_out=stats.get("total_out", 0.0),
+                net=stats.get("net", 0.0),
             )
         )
 
-    return DepartmentSummaryResponse(asset=asset, departments=department_items)
+    return DepartmentSummaryResponse(asset=asset, departments=items)
