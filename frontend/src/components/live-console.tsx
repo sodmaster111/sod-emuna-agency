@@ -46,6 +46,7 @@ export function LiveConsole({
 
   useEffect(() => {
     let isMounted = true;
+    const fallbackMessage = "Data temporarily unavailable. Please try again later.";
 
     const fetchLogs = async () => {
       try {
@@ -56,7 +57,7 @@ export function LiveConsole({
         setError(null);
       } catch (err) {
         if (!isMounted) return;
-        setError("Unable to reach backend logs. The system will retry automatically.");
+        setError(fallbackMessage);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -98,6 +99,12 @@ export function LiveConsole({
           </div>
         ) : null}
       </header>
+
+      {error ? (
+        <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+          {error}
+        </div>
+      ) : null}
 
       <div
         ref={containerRef}
