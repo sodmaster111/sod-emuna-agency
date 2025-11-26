@@ -27,6 +27,7 @@ export function TonBalanceCard({
 }: TonBalanceCardProps) {
   const [balance, setBalance] = useState<string>("—");
   const [trend, setTrend] = useState<{ direction: "up" | "down"; value: string } | undefined>();
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -43,10 +44,10 @@ export function TonBalanceCard({
 
         setTrend({ direction: "up", value: "+0.00%" });
         setBalance(`${formatted}${currency}`);
+        setHasError(false);
       } catch (err) {
         if (!isMounted) return;
-        setBalance("Unavailable");
-        setTrend(undefined);
+        setHasError(true);
       }
     };
 
@@ -54,6 +55,14 @@ export function TonBalanceCard({
   }, [endpoint]);
 
   const iconToRender = useMemo(() => icon, [icon]);
+
+  if (hasError) {
+    return (
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-sm text-[var(--color-text)]">
+        Data temporarily unavailable. Please try again later.
+      </div>
+    );
+  }
 
   return <StatsCard label={label} value={balance} description={description} icon={iconToRender} trend={trend} />;
 }
