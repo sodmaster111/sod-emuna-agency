@@ -1,0 +1,18 @@
+{
+  "common": {
+    "brand": "SOD Emuna"
+  },
+  "nav": {
+    "home": "Home",
+    "mission": "Mission",
+    "about": "About",
+    "contact": "Contact",
+    "donate": "Donate"
+  },
+  "home": {
+    "hero_title": "SOD Emuna connects community and action",
+    "hero_subtitle": "We support families, strengthen neighborhoods, and work together to build a safer future for everyone who counts on us.",
+    "cta_join": "Join the community",
+    "cta_donate": "Donate now"
+  }
+}
