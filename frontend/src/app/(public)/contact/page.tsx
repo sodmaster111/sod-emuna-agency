@@ -1,24 +1,28 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Contact",
+  description: "Get in touch with SOD Emuna Agency.",
+};
+
 export default function ContactPage() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold text-slate-900">צור קשר</h1>
-      <p className="text-lg text-slate-700">
-        נשמח לשמוע מכם. ניתן לפנות אלינו בכל שאלה, בקשה או הצעה דרך הערוצים הבאים.
-      </p>
-      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Email</p>
-          <p className="text-sm text-slate-700">contact@sod-emuna.agency</p>
+    <main className="min-h-screen">
+      <section className="mx-auto max-w-4xl space-y-6 px-6 py-12">
+        <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">Contact</p>
+        <div className="space-y-3">
+          <h1 className="text-4xl font-bold sm:text-5xl">Get in Touch</h1>
+          <p className="text-lg text-slate-300">
+            Reach out to the SOD Emuna Agency team for collaborations, support, or to share feedback on our mission-driven
+            work.
+          </p>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Telegram</p>
-          <p className="text-sm text-slate-700">@sod_emuna_agency</p>
+        <div className="space-y-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl shadow-emerald-500/10">
+          <p className="text-slate-200">Email: contact@sodmaster.online</p>
+          <p className="text-slate-200">Telegram: @sodmaster</p>
+          <p className="text-slate-200">Community updates: subscribe for launch notices and project news.</p>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-900">WhatsApp</p>
-          <p className="text-sm text-slate-700">+972-00-000-0000</p>
-        </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
