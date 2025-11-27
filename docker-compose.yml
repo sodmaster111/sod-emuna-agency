@@ -2,163 +2,20 @@ version: "3.9"
 
 services:
   backend:
-    image: sod-emuna-backend:latest
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:sodpassword@postgres:5432/sod_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
-      VECTOR_DB_URL: ${VECTOR_DB_URL:-http://vector-db:6333}
-      RAG_MODEL_NAME: ${RAG_MODEL_NAME:-llama3.1:8b-instruct}
-      EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME:-nomic-embed-text}
-      PORT: ${PORT:-8000}
+    build: .
+    container_name: sod-backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  worker:
-    image: sod-emuna-backend:latest
     env_file:
       - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:sodpassword@postgres:5432/sod_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
-      VECTOR_DB_URL: ${VECTOR_DB_URL:-http://vector-db:6333}
-      RAG_MODEL_NAME: ${RAG_MODEL_NAME:-llama3.1:8b-instruct}
-      EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME:-nomic-embed-text}
-    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  beat:
-    image: sod-emuna-backend:latest
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:sodpassword@postgres:5432/sod_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
-      VECTOR_DB_URL: ${VECTOR_DB_URL:-http://vector-db:6333}
-      RAG_MODEL_NAME: ${RAG_MODEL_NAME:-llama3.1:8b-instruct}
-      EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME:-nomic-embed-text}
-    command: celery -A app.core.celery_app.celery_app beat --loglevel=info
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:16-alpine
-    env_file:
-      - .env
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sodpassword}
-      POSTGRES_DB: ${POSTGRES_DB:-sod_db}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sod_db}"]
-      interval: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-    restart: unless-stopped
-
-  prometheus:
-    image: prom/prometheus:latest
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
-    restart: unless-stopped
-
-  loki:
-    image: grafana/loki:2.9.7
-    command: ["-config.file=/etc/loki/local-config.yaml"]
-    volumes:
-      - loki_data:/loki
-      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
-    restart: unless-stopped
-
-  promtail:
-    image: grafana/promtail:2.9.7
-    command: ["--config.file=/etc/promtail/config.yml"]
-    volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:10.4.2
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
-    environment:
-      # Set GF_SECURITY_ADMIN_PASSWORD to provision a known admin password on first start.
-      # Consider securing Grafana behind a TLS-enabled reverse proxy (e.g., Traefik/nginx) with basic auth.
-      GF_SERVER_HTTP_PORT: 3000
-    depends_on:
-      - prometheus
-      - loki
-    restart: unless-stopped
-
-  telegram-gateway:
-    build:
-      context: .
-    command: python -m telegram_gateway.main
-    environment:
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://api:8000}
-      GATEWAY_REQUEST_TIMEOUT: ${GATEWAY_REQUEST_TIMEOUT:-15}
-    depends_on:
-      - api
-    networks:
-      - sod
-
-volumes:
-  postgres_data:
-  redis_data:
-  prometheus_data:
-  loki_data:
-  grafana_data:
-
-networks:
-  sod:
-    driver: bridge
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"

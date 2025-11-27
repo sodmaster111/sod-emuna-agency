@@ -53,3 +53,8 @@ app.include_router(agents.router, prefix="/api/v1", tags=["Agents"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(amac.router)
 app.include_router(finance.router)
+
+
+@app.get("/")
+async def root_health():
+    return {"status": "ok"}
