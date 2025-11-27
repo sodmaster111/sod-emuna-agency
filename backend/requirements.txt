@@ -1,3 +1,11 @@
+# IMPORTANT:
+# LLM-related packages (langchain, langgraph, langchain-community, langsmith)
+# are strictly pinned to prevent pip ResolutionImpossible errors during Docker builds.
+# If you change any of these versions, you MUST run:
+#   pip install -r requirements.txt
+#   pip check
+#   docker build .
+# before committing.
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 sqlalchemy[asyncio]==2.0.25
@@ -11,5 +19,8 @@ httpx==0.26.0
 python-dotenv==1.0.0
 psycopg2-binary==2.9.9
 langgraph==0.0.25
-langchain==0.1.0
+langchain>=0.1.36,<0.3.0
+langchain-community>=0.0.20,<0.3.0
+langchain-core>=0.1.32,<0.3.0
+langsmith>=0.1.0,<0.2.0
 pyautogen==0.2.0
