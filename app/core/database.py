@@ -1,26 +1,42 @@
+from __future__ import annotations
+
 import os
 
+from sqlalchemy.engine.url import make_url, URL
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
-# 1. Read DATABASE_URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL")
+# 1. Читаем сырой URL из переменной окружения
+RAW_DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
+if not RAW_DATABASE_URL:
     raise RuntimeError("DATABASE_URL environment variable is not set")
 
 
-# 2. Normalize to asyncpg
-#    We aggressively rewrite ANY postgres-style URL to use the asyncpg driver.
-if DATABASE_URL.startswith("postgres://"):
-    # Heroku-style URL
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-elif DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+def build_asyncpg_url(raw_url: str) -> URL:
+    """
+    Превращает любой postgres/postgresql URL в URL с drivername='postgresql+asyncpg'.
+    Работает даже если сюда придет уже 'postgresql+psycopg2', 'postgresql', 'postgres' и т.п.
+    """
+    url = make_url(raw_url)
+
+    # Нормализуем postgres -> postgresql
+    if url.drivername == "postgres":
+        url = url.set(drivername="postgresql")
+
+    # Если это любой постгрес без asyncpg — насильно ставим asyncpg
+    if url.drivername.startswith("postgresql") and "asyncpg" not in url.drivername:
+        url = url.set(drivername="postgresql+asyncpg")
+
+    # Если это уже asyncpg — оставляем как есть
+    return url
 
 
-# 3. Create async engine
+DATABASE_URL = build_asyncpg_url(RAW_DATABASE_URL)
+
+
+# 2. Создаем async engine только на основе URL с drivername='postgresql+asyncpg'
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
@@ -28,7 +44,7 @@ engine = create_async_engine(
 )
 
 
-# 4. Session factory
+# 3. Session factory
 AsyncSessionLocal = sessionmaker(
     bind=engine,
     class_=AsyncSession,
@@ -36,11 +52,11 @@ AsyncSessionLocal = sessionmaker(
 )
 
 
-# 5. Base model
+# 4. Базовый класс для моделей
 Base = declarative_base()
 
 
-# 6. Dependency for FastAPI
+# 5. Зависимость для FastAPI
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
