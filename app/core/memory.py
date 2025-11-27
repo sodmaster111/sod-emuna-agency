@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 
@@ -11,13 +12,15 @@ def _normalize_database_url(database_url: str) -> str:
     if not database_url:
         raise RuntimeError("DATABASE_URL is not set")
 
-    if database_url.startswith("postgres://"):
-        return database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    url = make_url(database_url)
 
-    if database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
-        return database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.drivername == "postgres":
+        url = url.set(drivername="postgresql")
 
-    return database_url
+    if url.drivername.startswith("postgresql") and "asyncpg" not in url.drivername:
+        url = url.set(drivername="postgresql+asyncpg")
+
+    return str(url)
 
 
 class MemoryManager:
