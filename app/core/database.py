@@ -1,35 +1,29 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+import os
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-from app.core.config import settings
+DATABASE_URL = os.getenv("DATABASE_URL")
 
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is not set")
 
-def _normalize_database_url(database_url: str) -> str:
-    if not database_url:
-        raise RuntimeError("DATABASE_URL is not set")
-
-    if database_url.startswith("postgres://"):
-        return database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-
-    if database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
-        return database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-
-    return database_url
-
-
-database_url = _normalize_database_url(settings.database_url)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 engine = create_async_engine(
-    database_url,
-    echo=settings.DEBUG_SQL,
+    DATABASE_URL,
+    echo=False,
     future=True,
-    pool_pre_ping=True,
 )
+
 AsyncSessionLocal = sessionmaker(
-    engine,
+    bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
 Base = declarative_base()
 
 
